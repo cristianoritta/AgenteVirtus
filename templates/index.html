@@ -1,0 +1,90 @@
+{% extends "layout/base.html" %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="mb-3">
+                    <i class="fas fa-users fa-3x text-primary"></i>
+                </div>
+                <h5 class="card-title">Gerenciar Usuários</h5>
+                <p class="card-text text-muted">
+                    Visualize, adicione, edite e remova usuários do sistema de forma simples e intuitiva.
+                </p>
+                <a href="{{ url_for('usuarios') }}" class="btn btn-primary">
+                    <i class="fas fa-eye me-2"></i>Ver Usuários
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="mb-3">
+                    <i class="fas fa-user-plus fa-3x text-success"></i>
+                </div>
+                <h5 class="card-title">Adicionar Usuário</h5>
+                <p class="card-text text-muted">
+                    Cadastre novos usuários no sistema com nome e email únicos.
+                </p>
+                <a href="{{ url_for('novo_usuario') }}" class="btn btn-success">
+                    <i class="fas fa-plus me-2"></i>Novo Usuário
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-body text-center p-4">
+                <div class="mb-3">
+                    <i class="fas fa-code fa-3x text-info"></i>
+                </div>
+                <h5 class="card-title">API REST</h5>
+                <p class="card-text text-muted">
+                    Acesse os dados através da API REST para integração com outros sistemas.
+                </p>
+                <a href="{{ url_for('api_usuarios') }}" class="btn btn-info text-white">
+                    <i class="fas fa-database me-2"></i>Ver API
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Informações da Aplicação
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Tecnologias Utilizadas:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success me-2"></i>Flask - Framework web</li>
+                            <li><i class="fas fa-check text-success me-2"></i>SQLAlchemy - ORM</li>
+                            <li><i class="fas fa-check text-success me-2"></i>SQLite - Banco de dados</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Bootstrap 5 - Interface</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Funcionalidades:</h6>
+                        <ul class="list-unstyled">
+                            <li><i class="fas fa-check text-success me-2"></i>CRUD completo de usuários</li>
+                            <li><i class="fas fa-check text-success me-2"></i>API REST</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Interface responsiva</li>
+                            <li><i class="fas fa-check text-success me-2"></i>Validação de dados</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

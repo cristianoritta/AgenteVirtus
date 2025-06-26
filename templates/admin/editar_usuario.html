@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Editar {{ usuario.nome }} - Agente Virtus{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>Editar Usuário
+                </h5>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" novalidate>
+                    <div class="mb-3">
+                        <label for="nome" class="form-label">
+                            <i class="fas fa-user me-1"></i>Nome Completo
+                        </label>
+                        <input type="text" class="form-control" id="nome" name="nome" value="{{ usuario.nome }}"
+                            placeholder="Digite o nome completo" required autofocus>
+                        <div class="form-text">
+                            Digite o nome completo do usuário
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="email" class="form-label">
+                            <i class="fas fa-envelope me-1"></i>Email
+                        </label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ usuario.email }}"
+                            placeholder="usuario@exemplo.com" required>
+                        <div class="form-text">
+                            Digite um email válido e único
+                        </div>
+                    </div>
+
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning btn-lg">
+                            <i class="fas fa-save me-2"></i>Atualizar Usuário
+                        </button>
+                        <a href="{{ url_for('ver_usuario', id=usuario.id) }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-2"></i>Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Card de informações do usuário -->
+        <div class="card border-0 shadow-sm mt-4">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>Informações do Usuário
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <small class="text-muted">ID:</small>
+                        <p class="mb-2 fw-bold">{{ usuario.id }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Data de Criação:</small>
+                        <p class="mb-2 fw-bold">{{ usuario.data_criacao.strftime('%d/%m/%Y') }}</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <small class="text-muted">Hora de Criação:</small>
+                        <p class="mb-0 fw-bold">{{ usuario.data_criacao.strftime('%H:%M') }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">Dia da Semana:</small>
+                        <p class="mb-0 fw-bold">{{ usuario.data_criacao.strftime('%A') }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Card de validações -->
+        <div class="card border-0 shadow-sm mt-3">
+            <div class="card-body">
+                <h6 class="text-primary">
+                    <i class="fas fa-shield-alt me-2"></i>Validações
+                </h6>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        O email deve ser único no sistema
+                    </li>
+                    <li class="mb-2">
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        A data de criação não pode ser alterada
+                    </li>
+                    <li>
+                        <i class="fas fa-check-circle text-success me-2"></i>
+                        Todos os campos são obrigatórios
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Validação do lado do cliente
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.querySelector('form');
+        const nomeInput = document.getElementById('nome');
+        const emailInput = document.getElementById('email');
+
+        form.addEventListener('submit', function (e) {
+            let isValid = true;
+
+            // Validar nome
+            if (nomeInput.value.trim().length < 2) {
+                nomeInput.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                nomeInput.classList.remove('is-invalid');
+            }
+
+            // Validar email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(emailInput.value)) {
+                emailInput.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                emailInput.classList.remove('is-invalid');
+            }
+
+            if (!isValid) {
+                e.preventDefault();
+            }
+        });
+
+        // Remover classes de validação quando o usuário digita
+        nomeInput.addEventListener('input', function () {
+            this.classList.remove('is-invalid');
+        });
+
+        emailInput.addEventListener('input', function () {
+            this.classList.remove('is-invalid');
+        });
+    });
+</script>
+{% endblock %}

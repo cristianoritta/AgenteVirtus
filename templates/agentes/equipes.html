@@ -1,0 +1,112 @@
+{% extends 'layout/base.html' %}
+
+{% block main %}
+<div class="container-fluid">
+
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Minhas Equipes de Agentes</h1>
+        <div>
+            <a href="{{ url_for('canva') }}" class="btn btn-sm btn-primary shadow-sm">
+                <i class="fas fa-plus"></i> Nova Equipe
+            </a>
+            <form action="{{ url_for('importar_equipe') }}" method="post" enctype="multipart/form-data">
+                <label for="fileInput" class="btn btn-block btn-sm btn-info shadow-sm mt-1">
+                    <i class="fas fa-file-import"></i> Importar
+                </label>
+                <input type="file" id="fileInput" name="arquivo" accept=".json" class="d-none"
+                    onchange="this.form.submit()">
+            </form>
+        </div>
+    </div>
+
+    <!-- Content Row -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Equipes Salvas</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Descrição</th>
+                            <th>Criado em</th>
+                            <th>Executar</th>
+                            <th width="1%">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for equipe in equipes %}
+                        <tr>
+                            <td>{{ equipe.nome }}</td>
+                            <td>{{ equipe.descricao }}</td>
+                            <td>{{ equipe.criado_em.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>
+                                <a href="/agentesinteligentes/executar_tarefas/{{ equipe.id }}"
+                                    class="btn btn-success bg-green-500">
+                                    <i class="fa-solid fa-play"></i>
+                                    Executar
+                                </a>
+                            </td>
+                            <td nowrap>
+                                <a href="{{ url_for('canva', equipe_id=equipe.id) }}" class="btn btn-primary">
+                                    <i class="fa-solid fa-pencil"></i>
+                                    Editar
+                                </a>
+                                
+                                <a href="/agentesinteligentes/equipe/{{ equipe.id }}/download" class="btn btn-primary"
+                                    title="Download" download>
+                                    <i class="fa-solid fa-download"></i>&nbsp;
+                                </a>
+
+                                <button type="button" class="btn btn-danger btn-excluir"
+                                    data-equipe-id="{{ equipe.id }}" data-equipe-nome="{{ equipe.nome }}">
+                                    <i class="fa-solid fa-trash"></i>
+                                    Excluir
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center">Nenhuma equipe encontrada.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Adicionar event listeners para todos os botões de excluir
+        const botoesExcluir = document.querySelectorAll('.btn-excluir');
+
+        botoesExcluir.forEach(function (botao) {
+            botao.addEventListener('click', function () {
+                const equipeId = this.getAttribute('data-equipe-id');
+                const nomeEquipe = this.getAttribute('data-equipe-nome');
+
+                Swal.fire({
+                    title: 'Confirmar Exclusão',
+                    text: 'Tem certeza que deseja excluir a equipe "' + nomeEquipe + '"?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Sim, excluir!',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        window.location.href = '/agentesinteligentes/equipe/' + equipeId + '/deletar';
+                    }
+                });
+            });
+        });
+    });
+</script>
+{% endblock %}

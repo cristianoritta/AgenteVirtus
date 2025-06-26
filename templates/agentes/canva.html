@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgenteVirtus: Criador de Agentes</title>
+    <link rel="stylesheet" href="/static/css/agentes_canva.css">
+    <link rel="stylesheet" href="/static/vendor/sweetalert/sweetalert.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <!-- Cabeçalho -->
+        <header class="header">
+            <a href="/" class="logo">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="12 2 20 7 20 17 12 22 4 17 4 7 12 2"></polygon>
+                </svg>
+                AgenteVirtus: Criador de Agentes
+            </a>
+            <div class="crew-settings">
+                <span class="switch-label">Processo Sequencial</span>
+                <label class="switch">
+                    <input type="checkbox" id="processType" checked>
+                    <span class="slider"></span>
+                </label>
+                <span class="switch-label">Processo Hierárquico</span>
+            </div>
+            <div class="actions">
+                <a href="/agentesinteligentes/executar_tarefas/{{ equipe_data.id }}" class="btn btn-success">
+                    <span class="fas fa-play"></span>
+                </a>
+                <button class="btn btn-secondary" onclick="salvarEquipe()">
+                    <i class="fas fa-save"></i>
+                    Salvar Equipe
+                </button>
+                <a href="/agentesinteligentes/equipes" class="btn btn-secondary">
+                    <span class="fas fa-arrow-left"></span> Voltar
+                </a>
+            </div>
+        </header>
+
+        <!-- Barra lateral -->
+        <aside class="sidebar">
+            <div class="component-category">
+                <h3 class="sidebar-title">Início</h3>
+                <div class="component-list">
+                    <div class="component" draggable="true" data-type="trigger">
+                        <div class="component-icon bg-red">T</div>
+                        <span>Trigger</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="component-category">
+                <h3 class="sidebar-title">Agentes</h3>
+                <div class="component-list">
+                    <div class="component" draggable="true" data-type="agent">
+                        <div class="component-icon">A</div>
+                        <span>Agente</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="component-category">
+                <h3 class="sidebar-title">Tarefas</h3>
+                <div class="component-list">
+                    <div class="component" draggable="true" data-type="task">
+                        <div class="component-icon">T</div>
+                        <span>Tarefa</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="component-category">
+                <h3 class="sidebar-title">Segurança</h3>
+                <div class="component-list">
+                    <div class="component" draggable="true" data-type="guardrail">
+                        <div class="component-icon bg-orange">G</div>
+                        <span>Guardrail</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="component-category">
+                <h3 class="sidebar-title">Saída</h3>
+                <div class="component-list">
+                    <div class="component" draggable="true" data-type="formatoSaida">
+                        <div class="component-icon bg-green">F</div>
+                        <span>Formato Saída</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Área de desenho -->
+        <main class="canvas" id="canvas">
+            <!-- Nós serão adicionados aqui pelo JavaScript -->
+        </main>
+    </div>
+
+    <!-- Modal de Configuração do Agente -->
+    <div id="agentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Configurar Agente</h2>
+                <span class="close-modal" onclick="closeAgentModal()">&times;</span>
+            </div>
+            <div id="agentConfigForm">
+                <div class="form-group">
+                    <label for="agentRole">Papel do Agente</label>
+                    <input type="text" id="agentRole" placeholder="Ex: Analista de Dados">
+                </div>
+                <div class="form-group">
+                    <label for="agentGoal">Objetivo</label>
+                    <textarea id="agentGoal" placeholder="Descreva o objetivo do agente"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="agentBackstory">História</label>
+                    <textarea id="agentBackstory" placeholder="Descreva a história e contexto do agente"></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="switch">
+                        <input type="checkbox" id="agentDelegation" checked>
+                        <span class="slider"></span>
+                    </label>
+                    <span class="switch-label">Permitir Delegação</span>
+                </div>
+                <button class="btn btn-primary" onclick="saveAgentConfig()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuração da Tarefa -->
+    <div id="taskModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Configurar Tarefa</h2>
+                <span class="close-modal" onclick="closeTaskModal()">&times;</span>
+            </div>
+            <div id="taskConfigForm">
+                <div class="form-group">
+                    <label for="taskDescription">Descrição da Tarefa</label>
+                    <input type="text" id="taskDescription" placeholder="Descreva a tarefa">
+                </div>
+                <div class="form-group">
+                    <label for="taskExpectedOutput">Código python para a tarefa:</label>
+                    <textarea id="taskExpectedOutput" placeholder="Escreva aqui seu código python" rows="10"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="saveTaskConfig()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuração do Trigger -->
+    <div id="triggerModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Configurar Trigger</h2>
+                <span class="close-modal" onclick="closeTriggerModal()">&times;</span>
+            </div>
+            <div id="triggerConfigForm">
+                <div class="form-group">
+                    <label for="triggerType">Tipo de Trigger</label>
+                    <select id="triggerType" class="form-control">
+                        <option value="pdf">Documento PDF</option>
+                        <option value="text">Texto</option>
+                        <option value="audio">Áudio</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="triggerDescription">Descrição</label>
+                    <textarea id="triggerDescription" placeholder="Descreva o trigger"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="saveTriggerConfig()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuração do Guardrail -->
+    <div id="guardrailModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Configurar Guardrail</h2>
+                <span class="close-modal" onclick="closeGuardrailModal()">&times;</span>
+            </div>
+            <div id="guardrailConfigForm">
+                <div class="form-group">
+                    <label for="guardrailName">Nome</label>
+                    <input type="text" id="guardrailName" placeholder="Digite o nome do guardrail">
+                </div>
+                <div class="form-group">
+                    <label for="guardrailRules">Regras</label>
+                    <textarea id="guardrailRules" placeholder="Descreva as regras de segurança" rows="6"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="guardrailOutputFormat">Formato de Saída</label>
+                    <input type="text" id="guardrailOutputFormat" placeholder="Ex: JSON, XML, Texto simples">
+                </div>
+                <button class="btn btn-primary" onclick="saveGuardrailConfig()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuração do Formato de Saída -->
+    <div id="formatoSaidaModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Configurar Formato de Saída</h2>
+                <span class="close-modal" onclick="closeFormatoSaidaModal()">&times;</span>
+            </div>
+            <div id="formatoSaidaConfigForm">
+                <div class="form-group">
+                    <label for="formatoSaidaType">Tipo de Formato</label>
+                    <select id="formatoSaidaType" class="form-control">
+                        <option value="texto">Texto</option>
+                        <option value="word">Word</option>
+                        <option value="csv">CSV</option>
+                        <option value="pdf">PDF</option>
+                        <option value="mapamental">Mapa Mental</option>
+                        <option value="markdown">Markdown</option>
+                        <option value="json">JSON</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="formatoSaidaDescription">Descrição</label>
+                    <textarea id="formatoSaidaDescription" placeholder="Esse texto não será processado por IA"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="saveFormatoSaidaConfig()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Salvar Equipe -->
+    <div id="equipeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Salvar Equipe</h2>
+                <span class="close-modal" onclick="closeEquipeModal()">&times;</span>
+            </div>
+            <div id="equipeConfigForm">
+                <div class="form-group">
+                    <label for="equipeNome">Nome da Equipe</label>
+                    <input type="text" id="equipeNome" placeholder="Digite o nome da equipe">
+                </div>
+                <div class="form-group">
+                    <label for="equipeDescricao">Descrição</label>
+                    <textarea id="equipeDescricao" placeholder="Descreva a equipe"></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="confirmarSalvarEquipe()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/vendor/sweetalert/sweetalert.min.js"></script>
+    
+    <!-- Dados da equipe carregados do servidor -->
+    <div id="equipe-data" style="display: none;" data-equipe='{{ equipe_data|tojson|safe if equipe_data else "null" }}'></div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const canvas = document.getElementById('canvas');
+            let nodes = [];
+            let connections = [];
+            let draggedComponent = null;
+            let draggedNode = null;
+            let dragOffsetX = 0;
+            let dragOffsetY = 0;
+            let connectionStart = null;
+            let nodeCounter = 1;
+            let isCreatingConnection = false;
+            let currentNodeBeingConfigured = null;
+
+            const svgNS = "http://www.w3.org/2000/svg";
+            const svgLayer = document.createElementNS(svgNS, "svg");
+            svgLayer.setAttribute('id', 'connection-layer');
+            svgLayer.style.position = 'absolute';
+            svgLayer.style.left = '0';
+            svgLayer.style.top = '0';
+            svgLayer.style.width = '100%';
+            svgLayer.style.height = '100%';
+            svgLayer.style.zIndex = '1';
+            svgLayer.style.pointerEvents = 'none'; // Passa os eventos para os elementos filhos que os podem receber
+            canvas.appendChild(svgLayer);
+
+            // Configurar drag and drop dos componentes
+            const components = document.querySelectorAll('.component');
+            components.forEach(component => {
+                component.addEventListener('dragstart', function (e) {
+                    draggedComponent = this.getAttribute('data-type');
+                });
+            });
+
+            // Permitir soltar no canvas
+            canvas.addEventListener('dragover', function (e) {
+                e.preventDefault();
+            });
+
+            canvas.addEventListener('drop', function (e) {
+                e.preventDefault();
+                if (draggedComponent) {
+                    const nodeId = createNode(e.clientX, e.clientY, draggedComponent);
+                    if (draggedComponent === 'agent') {
+                        showAgentModal(nodeId);
+                    } else if (draggedComponent === 'task') {
+                        showTaskModal(nodeId);
+                    } else if (draggedComponent === 'trigger') {
+                        showTriggerModal(nodeId);
+                    } else if (draggedComponent === 'guardrail') {
+                        showGuardrailModal(nodeId);
+                    } else if (draggedComponent === 'formatoSaida') {
+                        showFormatoSaidaModal(nodeId);
+                    }
+                    draggedComponent = null;
+                }
+            });
+
+            // Lidar com eventos em todo o documento para garantir captura de eventos mesmo fora do canvas
+            document.addEventListener('mousedown', handleMouseDown);
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+
+            function createNode(x, y, type) {
+                const canvasRect = canvas.getBoundingClientRect();
+                const nodeId = `node-${nodeCounter++}`;
+                const nodeX = x - canvasRect.left - 100;
+                const nodeY = y - canvasRect.top - 30;
+
+                const nodeTypes = {
+                    'agent': { title: 'Agente', color: '#2563eb' },
+                    'task': { title: 'Tarefa', color: '#ffcc00' },
+                    'trigger': { title: 'Trigger', color: '#dc2626' },
+                    'guardrail': { title: 'Guardrail', color: '#f97316' },
+                    'formatoSaida': { title: 'Formato Saída', color: '#10b981' }
+                };
+
+                const nodeInfo = nodeTypes[type] || { title: 'Componente', color: '#2563eb' };
+
+                const node = document.createElement('div');
+                node.className = 'node';
+                node.id = nodeId;
+                node.setAttribute('data-type', type);
+                node.style.left = `${nodeX}px`;
+                node.style.top = `${nodeY}px`;
+                node.style.zIndex = '10';
+
+                let portsHTML = '';
+                if (type === 'trigger') {
+                    portsHTML = `<div class="port port-out" data-port="out-1" data-node="${nodeId}">Saída</div>`;
+                } else if (type === 'task') {
+                    portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>`;
+                } else if (type === 'guardrail') {
+                    portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>
+                        <div class="port-divider"></div>
+                        <div class="port port-out" data-port="out-1" data-node="${nodeId}">Saída</div>`;
+                } else if (type === 'formatoSaida') {
+                    portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>`;
+                } else { // Para agentes e outros tipos
+                    portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>
+                        <div class="port-divider"></div>
+                        <div class="port port-out" data-port="out-1" data-node="${nodeId}">Saída</div>` +
+                        (type === 'agent' ? `<div class="port-divider"></div><div class="port port-out port-task" data-port="tasks" data-node="${nodeId}">Tarefas</div>` : '');
+                }
+
+                node.innerHTML = `
+                    <div class="node-header" style="background-color: ${nodeInfo.color}">
+                        <span class="node-title">${nodeInfo.title}</span>
+                        <div class="node-actions">
+                            <span class="edit-node" onclick="editNode('${nodeId}')">✎</span>
+                            <span class="delete-node" onclick="deleteNode('${nodeId}')">×</span>
+                        </div>
+                    </div>
+                    <div class="node-content">
+                        <div class="node-details"></div>
+                        <div class="node-ports">${portsHTML}</div>
+                    </div>
+                `;
+
+                canvas.appendChild(node);
+
+                nodes.push({
+                    id: nodeId,
+                    element: node,
+                    type: type,
+                    x: nodeX,
+                    y: nodeY,
+                    config: {}
+                });
+
+                return nodeId;
+            }
+
+            function handleMouseDown(e) {
+                // Se clicarmos em uma porta de saída, iniciamos uma conexão
+                if (e.target.classList.contains('port-out')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    isCreatingConnection = true;
+
+                    connectionStart = {
+                        node: e.target.getAttribute('data-node'),
+                        port: e.target.getAttribute('data-port'),
+                        element: e.target
+                    };
+                    return;
+                }
+
+                // Se clicarmos em um nó (mas não em uma porta), preparamos para arrastar o nó
+                const nodeElement = e.target.closest('.node');
+                if (nodeElement && !e.target.classList.contains('port')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    draggedNode = nodeElement;
+                    const nodeRect = nodeElement.getBoundingClientRect();
+
+                    dragOffsetX = e.clientX - nodeRect.left;
+                    dragOffsetY = e.clientY - nodeRect.top;
+                }
+            }
+
+            function handleMouseMove(e) {
+                const canvasRect = canvas.getBoundingClientRect();
+
+                // Se estamos arrastando um nó, movê-lo
+                if (draggedNode) {
+                    const x = e.clientX - canvasRect.left - dragOffsetX;
+                    const y = e.clientY - canvasRect.top - dragOffsetY;
+
+                    draggedNode.style.left = `${x}px`;
+                    draggedNode.style.top = `${y}px`;
+
+                    // Atualizar conexões quando o nó se move
+                    updateConnections();
+                    return;
+                }
+
+                // Se estamos criando uma conexão, desenhar a linha temporária
+                if (isCreatingConnection && connectionStart) {
+                    // Remover linha temporária anterior
+                    const tempConnection = document.getElementById('temp-connection');
+                    if (tempConnection) {
+                        tempConnection.remove();
+                    }
+
+                    // Obter posição da porta de origem
+                    const startPort = document.querySelector(`[data-node="${connectionStart.node}"][data-port="${connectionStart.port}"]`);
+                    if (!startPort) return;
+
+                    const startPortRect = startPort.getBoundingClientRect();
+
+                    const startX = startPortRect.right - canvasRect.left;
+                    const startY = startPortRect.top + startPortRect.height / 2 - canvasRect.top;
+                    const endX = e.clientX - canvasRect.left;
+                    const endY = e.clientY - canvasRect.top;
+
+                    // Criar SVG para a linha de conexão temporária
+                    drawTempConnection(startX, startY, endX, endY);
+                }
+            }
+
+            function handleMouseUp(e) {
+                // Se estávamos arrastando um nó, finalizar o arrasto
+                if (draggedNode) {
+                    draggedNode = null;
+                }
+
+                // Se estávamos criando uma conexão, verificar se terminamos sobre uma porta de entrada
+                if (isCreatingConnection && connectionStart) {
+                    const elements = document.elementsFromPoint(e.clientX, e.clientY);
+                    let targetPort = null;
+
+                    // Encontrar uma porta de entrada nos elementos sob o mouse
+                    for (const element of elements) {
+                        if (element.classList.contains('port-in')) {
+                            targetPort = element;
+                            break;
+                        }
+                    }
+
+                    // Se encontramos uma porta de entrada válida, criar a conexão
+                    if (targetPort) {
+                        const endNode = targetPort.getAttribute('data-node');
+                        const endPort = targetPort.getAttribute('data-port');
+
+                        // Não permitir conexões para o mesmo nó
+                        if (endNode !== connectionStart.node) {
+                            
+                            const startNodeElement = document.getElementById(connectionStart.node);
+                            const endNodeElement = document.getElementById(endNode);
+
+                            if(startNodeElement && endNodeElement) {
+                                const endNodeType = endNodeElement.getAttribute('data-type');
+                                let isValid = false;
+
+                                // Regra 1: A porta 'tasks' só pode se conectar a um nó do tipo 'task'
+                                if (connectionStart.port === 'tasks') {
+                                    if (endNodeType === 'task' && endPort === 'in-1') {
+                                        isValid = true;
+                                    }
+                                } 
+                                // Regra 2: A porta de saída padrão não pode se conectar a uma tarefa.
+                                else if (connectionStart.port === 'out-1') {
+                                    if (endNodeType !== 'task' && endPort === 'in-1') {
+                                        isValid = true;
+                                    }
+                                }
+
+                                if(isValid) {
+                                    createConnection(
+                                        connectionStart.node,
+                                        connectionStart.port,
+                                        endNode,
+                                        endPort
+                                    );
+                                }
+                            }
+                        }
+                    }
+
+                    // Limpar a conexão temporária
+                    const tempConnection = document.getElementById('temp-connection');
+                    if (tempConnection) {
+                        tempConnection.remove();
+                    }
+
+                    // Resetar estado
+                    connectionStart = null;
+                    isCreatingConnection = false;
+                }
+            }
+
+            function drawTempConnection(startX, startY, endX, endY) {
+                // Remover linha temporária anterior, caso exista
+                const existingTemp = document.getElementById('temp-connection');
+                if (existingTemp) {
+                    existingTemp.remove();
+                }
+
+                const path = createConnectionPath(startX, startY, endX, endY);
+
+                const startPortClass = connectionStart.element.className;
+                const connectionColor = startPortClass.includes('port-task') ? '#f59e0b' : '#2563eb';
+
+                const pathElement = document.createElementNS(svgNS, "path");
+                pathElement.setAttribute('id', 'temp-connection');
+                pathElement.setAttribute('d', path);
+                pathElement.setAttribute('stroke', connectionColor);
+                pathElement.setAttribute('stroke-width', '2');
+                pathElement.setAttribute('fill', 'none');
+                
+                svgLayer.appendChild(pathElement);
+            }
+
+            function createConnection(startNode, startPort, endNode, endPort) {
+                // Verificar se já existe uma conexão similar
+                const existingConnection = connections.find(conn =>
+                    conn.startNode === startNode &&
+                    conn.startPort === startPort &&
+                    conn.endNode === endNode &&
+                    conn.endPort === endPort
+                );
+
+                if (existingConnection) return;
+
+                const connectionId = `connection-${startNode}-${startPort}-${endNode}-${endPort}`;
+
+                connections.push({
+                    id: connectionId,
+                    startNode,
+                    startPort,
+                    endNode,
+                    endPort
+                });
+
+                updateConnections();
+            }
+
+            function updateConnections() {
+                svgLayer.innerHTML = ''; // Limpa todas as conexões anteriores
+
+                // Desenhar todas as conexões
+                connections.forEach(connection => {
+                    const startPortElement = document.querySelector(`[data-node="${connection.startNode}"][data-port="${connection.startPort}"]`);
+                    const endPortElement = document.querySelector(`[data-node="${connection.endNode}"][data-port="${connection.endPort}"]`);
+
+                    if (startPortElement && endPortElement) {
+                        const canvasRect = canvas.getBoundingClientRect();
+
+                        const startPortRect = startPortElement.getBoundingClientRect();
+                        const endPortRect = endPortElement.getBoundingClientRect();
+
+                        const startX = startPortRect.right - canvasRect.left;
+                        const startY = startPortRect.top + startPortRect.height / 2 - canvasRect.top;
+                        const endX = endPortRect.left - canvasRect.left;
+                        const endY = endPortRect.top + endPortRect.height / 2 - canvasRect.top;
+
+                        const path = createConnectionPath(startX, startY, endX, endY);
+
+                        const connectionColor = connection.startPort === 'tasks' ? '#f59e0b' : '#2563eb';
+                        
+                        const pathElement = document.createElementNS(svgNS, "path");
+                        pathElement.setAttribute('d', path);
+                        pathElement.setAttribute('stroke', connectionColor);
+                        pathElement.setAttribute('stroke-width', '2');
+                        pathElement.setAttribute('fill', 'none');
+
+                        const hitbox = document.createElementNS(svgNS, "path");
+                        hitbox.setAttribute('d', path);
+                        hitbox.setAttribute('stroke', 'transparent');
+                        hitbox.setAttribute('stroke-width', '10');
+                        hitbox.setAttribute('fill', 'none');
+                        hitbox.style.cursor = 'pointer';
+                        hitbox.style.pointerEvents = 'stroke'; // Eventos apenas na área da linha
+                        
+                        hitbox.addEventListener('mouseover', function() {
+                            pathElement.setAttribute('stroke-width', '4');
+                        });
+
+                        hitbox.addEventListener('mouseout', function() {
+                            pathElement.setAttribute('stroke-width', '2');
+                        });
+
+                        svgLayer.appendChild(pathElement);
+                        svgLayer.appendChild(hitbox);
+                        
+                        // Adiciona um grupo para o botão de exclusão
+                        const midX = (startX + endX) / 2;
+                        const midY = (startY + endY) / 2;
+
+                        const deleteGroup = document.createElementNS(svgNS, 'g');
+                        deleteGroup.style.cursor = 'pointer';
+                        deleteGroup.style.pointerEvents = 'all'; // Garante que o grupo receba eventos
+
+                        deleteGroup.addEventListener('dblclick', function(e) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            deleteConnection(connection.id);
+                        });
+
+                        const deleteCircle = document.createElementNS(svgNS, 'circle');
+                        deleteCircle.setAttribute('cx', String(midX));
+                        deleteCircle.setAttribute('cy', String(midY));
+                        deleteCircle.setAttribute('r', '8');
+                        deleteCircle.setAttribute('fill', 'white');
+                        deleteCircle.setAttribute('stroke', '#dc2626');
+                        deleteCircle.setAttribute('stroke-width', '2');
+
+                        const deleteX = document.createElementNS(svgNS, 'text');
+                        deleteX.setAttribute('x', String(midX));
+                        deleteX.setAttribute('y', String(midY));
+                        deleteX.setAttribute('text-anchor', 'middle');
+                        deleteX.setAttribute('dy', '0.3em'); // Alinhamento vertical
+                        deleteX.setAttribute('fill', '#dc2626');
+                        deleteX.style.fontSize = '12px';
+                        deleteX.style.fontWeight = 'bold';
+                        deleteX.textContent = '×';
+
+                        deleteGroup.appendChild(deleteCircle);
+                        deleteGroup.appendChild(deleteX);
+                        
+                        svgLayer.appendChild(deleteGroup);
+                    }
+                });
+            }
+
+            function deleteConnection(connectionId) {
+                swal({
+                    title: "Tem certeza?",
+                    text: "Uma vez excluída, a conexão não poderá ser recuperada.",
+                    type: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Excluir",
+                    cancelButtonText: "Cancelar",
+                    confirmButtonColor: "#dc2626",
+                    reverseButtons: true
+                }).then((result) => {
+                    if (result.value) {
+                        // Remover a conexão do array
+                        connections = connections.filter(conn => conn.id !== connectionId);
+                        // Atualizar as conexões visuais
+                        updateConnections();
+                    }
+                });
+            }
+
+            function createConnectionPath(x1, y1, x2, y2) {
+                const offset = Math.min(100, Math.abs(x2 - x1) / 2);
+                return `M ${x1} ${y1} C ${x1 + offset} ${y1}, ${x2 - offset} ${y2}, ${x2} ${y2}`;
+            }
+
+            // Funções para manipulação dos modais
+            window.showAgentModal = function (nodeId) {
+                currentNodeBeingConfigured = nodeId;
+                clearModalFields();
+                document.getElementById('agentModal').style.display = 'block';
+            }
+
+            window.closeAgentModal = function () {
+                document.getElementById('agentModal').style.display = 'none';
+                currentNodeBeingConfigured = null;
+            }
+
+            window.showTaskModal = function (nodeId) {
+                currentNodeBeingConfigured = nodeId;
+                clearModalFields();
+                document.getElementById('taskModal').style.display = 'block';
+            }
+
+            window.closeTaskModal = function () {
+                document.getElementById('taskModal').style.display = 'none';
+                currentNodeBeingConfigured = null;
+            }
+
+            window.showTriggerModal = function (nodeId) {
+                currentNodeBeingConfigured = nodeId;
+                clearModalFields();
+                document.getElementById('triggerModal').style.display = 'block';
+            }
+
+            window.closeTriggerModal = function () {
+                document.getElementById('triggerModal').style.display = 'none';
+                currentNodeBeingConfigured = null;
+            }
+
+            window.showGuardrailModal = function (nodeId) {
+                currentNodeBeingConfigured = nodeId;
+                clearModalFields();
+                document.getElementById('guardrailModal').style.display = 'block';
+            }
+
+            window.closeGuardrailModal = function () {
+                document.getElementById('guardrailModal').style.display = 'none';
+                currentNodeBeingConfigured = null;
+            }
+
+            window.showFormatoSaidaModal = function (nodeId) {
+                currentNodeBeingConfigured = nodeId;
+                clearModalFields();
+                document.getElementById('formatoSaidaModal').style.display = 'block';
+            }
+
+            window.closeFormatoSaidaModal = function () {
+                document.getElementById('formatoSaidaModal').style.display = 'none';
+                currentNodeBeingConfigured = null;
+            }
+
+            window.saveAgentConfig = function () {
+                if (!currentNodeBeingConfigured) return;
+
+                const role = document.getElementById('agentRole').value;
+                const goal = document.getElementById('agentGoal').value;
+                const backstory = document.getElementById('agentBackstory').value;
+                const allowDelegation = document.getElementById('agentDelegation').checked;
+
+                if (!role || !goal || !backstory) {
+                    alert('Por favor, preencha todos os campos');
+                    return;
+                }
+
+                const node = nodes.find(n => n.id === currentNodeBeingConfigured);
+                if (node) {
+                    node.config = {
+                        role,
+                        goal,
+                        backstory,
+                        allowDelegation
+                    };
+                    updateNodeDetails(node.id);
+                }
+
+                closeAgentModal();
+            }
+
+            window.saveTaskConfig = function () {
+                if (!currentNodeBeingConfigured) return;
+
+                const description = document.getElementById('taskDescription').value;
+                const expectedOutput = document.getElementById('taskExpectedOutput').value;
+
+                if (!description || !expectedOutput) {
+                    alert('Por favor, preencha todos os campos');
+                    return;
+                }
+
+                const node = nodes.find(n => n.id === currentNodeBeingConfigured);
+                if (node) {
+                    node.config = { description, expectedOutput };
+                    updateNodeDetails(node.id);
+                }
+
+                closeTaskModal();
+            }
+
+            window.saveTriggerConfig = function () {
+                if (!currentNodeBeingConfigured) return;
+
+                const type = document.getElementById('triggerType').value;
+                const description = document.getElementById('triggerDescription').value;
+
+                if (!type || !description) {
+                    alert('Por favor, preencha todos os campos');
+                    return;
+                }
+
+                const node = nodes.find(n => n.id === currentNodeBeingConfigured);
+                if (node) {
+                    node.config = { type, description };
+                    updateNodeDetails(node.id);
+                }
+
+                closeTriggerModal();
+            }
+
+            window.saveGuardrailConfig = function () {
+                if (!currentNodeBeingConfigured) return;
+
+                const name = document.getElementById('guardrailName').value;
+                const rules = document.getElementById('guardrailRules').value;
+                const outputFormat = document.getElementById('guardrailOutputFormat').value;
+
+                if (!name || !rules || !outputFormat) {
+                    alert('Por favor, preencha todos os campos');
+                    return;
+                }
+
+                const node = nodes.find(n => n.id === currentNodeBeingConfigured);
+                if (node) {
+                    node.config = { name, rules, outputFormat };
+                    updateNodeDetails(node.id);
+                }
+
+                closeGuardrailModal();
+            }
+
+            window.saveFormatoSaidaConfig = function () {
+                if (!currentNodeBeingConfigured) return;
+
+                const type = document.getElementById('formatoSaidaType').value;
+                const description = document.getElementById('formatoSaidaDescription').value;
+
+                if (!type || !description) {
+                    alert('Por favor, preencha todos os campos');
+                    return;
+                }
+
+                const node = nodes.find(n => n.id === currentNodeBeingConfigured);
+                if (node) {
+                    node.config = { type, description };
+                    updateNodeDetails(node.id);
+                }
+
+                closeFormatoSaidaModal();
+            }
+
+            // Função para limpar campos do modal
+            function clearModalFields() {
+                // Limpar campos do modal de agente
+                document.getElementById('agentRole').value = '';
+                document.getElementById('agentGoal').value = '';
+                document.getElementById('agentBackstory').value = '';
+
+                // Limpar campos do modal de tarefa
+                document.getElementById('taskDescription').value = '';
+                document.getElementById('taskExpectedOutput').value = '';
+
+                // Limpar campos do modal de trigger
+                document.getElementById('triggerType').value = 'pdf';
+                document.getElementById('triggerDescription').value = '';
+
+                // Limpar campos do modal de guardrail
+                document.getElementById('guardrailName').value = '';
+                document.getElementById('guardrailRules').value = '';
+                document.getElementById('guardrailOutputFormat').value = '';
+
+                // Limpar campos do modal de formato de saída
+                document.getElementById('formatoSaidaType').value = 'texto';
+                document.getElementById('formatoSaidaDescription').value = '';
+            }
+
+            // Função para atualizar detalhes do nó
+            function updateNodeDetails(nodeId) {
+                const node = nodes.find(n => n.id === nodeId);
+                if (!node) return;
+
+                const detailsElement = node.element.querySelector('.node-details');
+                const titleElement = node.element.querySelector('.node-title');
+
+                if (node.type === 'agent' && node.config.role) {
+                    titleElement.textContent = node.config.role;
+                    detailsElement.innerHTML = `
+                        <div class="node-detail-item">
+                            <small>Objetivo:</small> ${node.config.goal.substring(0, 50)}...
+                        </div>
+                        <div class="node-detail-item">
+                            <small>Delegação:</small> ${node.config.allowDelegation ? 'Sim' : 'Não'}
+                        </div>
+                    `;
+                } else if (node.type === 'task' && node.config.description) {
+                    titleElement.textContent = 'Tarefa';
+                    detailsElement.innerHTML = `
+                        <div class="node-detail-item">
+                            <small>Descrição:</small> ${node.config.description.substring(0, 50)}...
+                        </div>
+                    `;
+                } else if (node.type === 'trigger' && node.config.type) {
+                    const triggerTypeLabels = {
+                        'pdf': 'PDF',
+                        'text': 'Texto',
+                        'audio': 'Áudio'
+                    };
+                    const typeLabel = triggerTypeLabels[node.config.type] || node.config.type;
+                    titleElement.textContent = `Trigger - ${typeLabel}`;
+                    detailsElement.innerHTML = `
+                        <div class="node-detail-item">
+                            <small>Descrição:</small> ${node.config.description.substring(0, 50)}...
+                        </div>
+                    `;
+                } else if (node.type === 'guardrail' && node.config.name) {
+                    titleElement.textContent = node.config.name;
+                    detailsElement.innerHTML = `
+                        <div class="node-detail-item">
+                            <small>Regras:</small> ${node.config.rules.substring(0, 50)}...
+                        </div>
+                        <div class="node-detail-item">
+                            <small>Formato de Saída:</small> ${node.config.outputFormat}
+                        </div>
+                    `;
+                } else if (node.type === 'formatoSaida' && node.config.type) {
+                    const formatoTypeLabels = {
+                        'texto': 'Texto',
+                        'word': 'Word',
+                        'csv': 'CSV',
+                        'pdf': 'PDF',
+                        'mapamental': 'Mapa Mental',
+                        'markdown': 'Markdown',
+                        'json': 'JSON'
+                    };
+                    const typeLabel = formatoTypeLabels[node.config.type] || node.config.type;
+                    titleElement.textContent = `Formato - ${typeLabel}`;
+                    detailsElement.innerHTML = `
+                        <div class="node-detail-item">
+                            <small>Descrição:</small> ${node.config.description.substring(0, 50)}...
+                        </div>
+                    `;
+                }
+            }
+
+            // Função para editar nó existente
+            window.editNode = function (nodeId) {
+                const node = nodes.find(n => n.id === nodeId);
+                if (!node) return;
+
+                currentNodeBeingConfigured = nodeId;
+
+                if (node.type === 'agent') {
+                    document.getElementById('agentRole').value = node.config.role || '';
+                    document.getElementById('agentGoal').value = node.config.goal || '';
+                    document.getElementById('agentBackstory').value = node.config.backstory || '';
+                    document.getElementById('agentDelegation').checked = node.config.allowDelegation !== false;
+                    document.getElementById('agentModal').style.display = 'block';
+                } else if (node.type === 'task') {
+                    document.getElementById('taskDescription').value = node.config.description || '';
+                    document.getElementById('taskExpectedOutput').value = node.config.expectedOutput || '';
+                    document.getElementById('taskModal').style.display = 'block';
+                } else if (node.type === 'trigger') {
+                    document.getElementById('triggerType').value = node.config.type || 'pdf';
+                    document.getElementById('triggerDescription').value = node.config.description || '';
+                    document.getElementById('triggerModal').style.display = 'block';
+                } else if (node.type === 'guardrail') {
+                    document.getElementById('guardrailName').value = node.config.name || '';
+                    document.getElementById('guardrailRules').value = node.config.rules || '';
+                    document.getElementById('guardrailOutputFormat').value = node.config.outputFormat || '';
+                    document.getElementById('guardrailModal').style.display = 'block';
+                } else if (node.type === 'formatoSaida') {
+                    document.getElementById('formatoSaidaType').value = node.config.type || 'texto';
+                    document.getElementById('formatoSaidaDescription').value = node.config.description || '';
+                    document.getElementById('formatoSaidaModal').style.display = 'block';
+                }
+            }
+
+            // Função para excluir nó
+            window.deleteNode = function (nodeId) {
+                if (confirm('Tem certeza que deseja excluir este componente?')) {
+                    // Remover todas as conexões relacionadas ao nó
+                    connections = connections.filter(conn =>
+                        conn.startNode !== nodeId && conn.endNode !== nodeId
+                    );
+
+                    // Remover o nó do array
+                    nodes = nodes.filter(node => node.id !== nodeId);
+
+                    // Remover o elemento do DOM
+                    const nodeElement = document.getElementById(nodeId);
+                    if (nodeElement) {
+                        nodeElement.remove();
+                    }
+
+                    // Atualizar as conexões visuais
+                    updateConnections();
+                }
+            }
+
+            // Função para carregar equipe do backend
+            function carregarEquipe(equipeData) {
+                if (!equipeData || !equipeData.layout) {
+                    return;
+                }
+
+                const layout = equipeData.layout;
+                
+                // Carregar nós
+                layout.nodes.forEach(nodeData => {
+                    const newNodeId = createNodeFromData(nodeData);
+                    const node = nodes.find(n => n.id === newNodeId);
+                    if (node) {
+                        node.config = nodeData.config;
+                        updateNodeDetails(newNodeId);
+                    }
+                });
+
+                // Carregar conexões
+                connections = layout.connections || [];
+                updateConnections();
+
+                // Definir tipo de processo
+                document.getElementById('processType').checked = (equipeData.processo === 'hierarchical');
+            }
+
+            function createNodeFromData(nodeData) {
+                const nodeId = nodeData.id;
+                nodeCounter = Math.max(nodeCounter, parseInt(nodeId.split('-')[1]) + 1);
+
+                const nodeTypes = {
+                    'agent': { title: 'Agente', color: '#2563eb' },
+                    'task': { title: 'Tarefa', color: '#ffcc00' },
+                    'trigger': { title: 'Trigger', color: '#dc2626' },
+                    'guardrail': { title: 'Guardrail', color: '#f97316' },
+                    'formatoSaida': { title: 'Formato Saída', color: '#10b981' }
+                };
+                const nodeInfo = nodeTypes[nodeData.type];
+
+                let portsHTML;
+                if (nodeData.type === 'trigger') {
+                    portsHTML = `<div class="port port-out" data-port="out-1" data-node="${nodeId}">Saída</div>`;
+                } else if (nodeData.type === 'task') {
+                    portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>`;
+                } else if (nodeData.type === 'guardrail') {
+                    portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>
+                        <div class="port-divider"></div>
+                        <div class="port port-out" data-port="out-1" data-node="${nodeId}">Saída</div>`;
+                } else if (nodeData.type === 'formatoSaida') {
+                    portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>`;
+                } else { // agent or other types
+                    portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>
+                       <div class="port-divider"></div>
+                       <div class="port port-out" data-port="out-1" data-node="${nodeId}">Saída</div>` +
+                       (nodeData.type === 'agent' ? `<div class="port-divider"></div><div class="port port-out port-task" data-port="tasks" data-node="${nodeId}">Tarefas</div>` : '');
+                }
+
+                const node = document.createElement('div');
+                node.className = 'node';
+                node.id = nodeId;
+                node.setAttribute('data-type', nodeData.type);
+                node.style.left = `${nodeData.x}px`;
+                node.style.top = `${nodeData.y}px`;
+                node.style.zIndex = '10';
+
+                node.innerHTML = `
+                    <div class="node-header" style="background-color: ${nodeInfo.color}">
+                        <span class="node-title">${nodeInfo.title}</span>
+                        <div class="node-actions">
+                            <span class="edit-node" onclick="editNode('${nodeId}')">✎</span>
+                            <span class="delete-node" onclick="deleteNode('${nodeId}')">×</span>
+                        </div>
+                    </div>
+                    <div class="node-content">
+                        <div class="node-details"></div>
+                        <div class="node-ports">${portsHTML}</div>
+                    </div>`;
+
+                canvas.appendChild(node);
+                nodes.push({ id: nodeId, element: node, type: nodeData.type, config: {} });
+                return nodeId;
+            }
+
+            // Iniciar o carregamento da equipe se os dados estiverem presentes
+            const equipeDataElement = document.getElementById('equipe-data');
+            let equipeData = null;
+            
+            if (equipeDataElement) {
+                const equipeDataString = equipeDataElement.getAttribute('data-equipe');
+                if (equipeDataString && equipeDataString !== 'null') {
+                    try {
+                        equipeData = JSON.parse(equipeDataString);
+                    } catch (e) {
+                        console.error("Erro ao fazer o parse dos dados da equipe:", e);
+                        console.error("String recebida:", equipeDataString);
+                    }
+                }
+            }
+            
+            carregarEquipe(equipeData);
+
+            // Funções para o modal de salvar equipe
+            function closeEquipeModal() {
+                document.getElementById('equipeModal').style.display = 'none';
+            }
+
+            window.salvarEquipe = function () {
+                // Pré-preenche o modal se estiver editando uma equipe
+                if (equipeData && equipeData.id) {
+                    document.getElementById('equipeNome').value = equipeData.nome || '';
+                    document.getElementById('equipeDescricao').value = equipeData.descricao || '';
+                } else {
+                    document.getElementById('equipeNome').value = '';
+                    document.getElementById('equipeDescricao').value = '';
+                }
+                document.getElementById('equipeModal').style.display = 'block';
+            }
+
+            window.confirmarSalvarEquipe = async function () {
+                const nome = document.getElementById('equipeNome').value;
+                const descricao = document.getElementById('equipeDescricao').value;
+
+                if (!nome || !descricao) {
+                    swal("Erro!", "Nome e descrição são obrigatórios.", "error");
+                    return;
+                }
+
+                closeEquipeModal();
+
+                const isEditing = equipeData && equipeData.id;
+                const url = isEditing ? `/agentesinteligentes/equipe/${equipeData.id}/editar` : '/agentesinteligentes/criar_equipe/';
+                const method = 'POST';
+
+                try {
+                    const processType = document.getElementById('processType').checked ? 'hierarchical' : 'sequential';
+                    
+                    const layoutData = {
+                        nodes: nodes.map(n => ({
+                            id: n.id,
+                            type: n.type,
+                            x: n.element.offsetLeft,
+                            y: n.element.offsetTop,
+                            config: n.config
+                        })),
+                        connections: connections
+                    };
+
+                    const response = await fetch(url, {
+                        method: method,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            nome: nome,
+                            descricao: descricao,
+                            process_type: processType,
+                            layout: layoutData
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        const successMessage = isEditing ? "Equipe atualizada com sucesso!" : "Equipe criada com sucesso!";
+                        swal("Sucesso!", successMessage, "success")
+                            .then(() => {
+                                // Redireciona para a mesma página para garantir que o estado salvo seja exibido
+                                if (!isEditing) {
+                                    window.location.href = `/agentesinteligentes/canva/${data.equipe_id}`;
+                                }
+                            });
+                    } else {
+                        swal("Erro!", `Erro ao salvar equipe: ${data.message}`, "error");
+                    }
+                } catch (error) {
+                    swal("Erro!", `Erro ao salvar equipe: ${error.message}`, "error");
+                }
+            }
+
+            // Função auxiliar para obter o token CSRF
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+        });
+    </script>
+</body>
+
+</html>

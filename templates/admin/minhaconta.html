@@ -1,0 +1,30 @@
+{% extends 'layout/base.html' %}
+
+{% block main %}
+<div class="card">
+    <div class="card-header">
+        Minha Conta
+    </div>
+    <div class="card-body">
+        <form action="/minhaconta" method="post" id="form-minhaconta">
+            <div class="row">
+                <div class="form-group col-6">
+                    <label for="nome">Nome</label>
+                    <input type="text" class="form-control" id="nome" name="nome" value="{{ usuario.nome }}">
+                </div>
+                <div class="form-group col-6">
+                    <label for="email">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ usuario.email }}">
+                </div>
+                <div class="form-group col-6">
+                    <label for="telefone">Telefone</label>
+                    <input type="text" class="form-control" id="telefone" name="telefone" value="{{ usuario.telefone }}">
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="card-footer">
+        <button type="submit" class="btn btn-primary" form="form-minhaconta">Salvar</button>
+    </div>
+</div>
+{% endblock %}

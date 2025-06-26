@@ -1,0 +1,225 @@
+{% extends "layout/base.html" %}
+
+{% block main %}
+<div class="container-fluid p-3">
+    <div class="row g-3">
+        <!-- Container principal do chat -->
+        <div class="col-12">
+            <div class="card h-90">
+                <div class="card-inner chat-container">
+                    <!-- Efeito de ondas -->
+                    <div class="waves">
+                        <div class="wave"></div>
+                        <div class="wave"></div>
+                        <div class="wave"></div>
+                    </div>
+
+                    <!-- Área de mensagens com scroll -->
+                    <div id="chat-messages" class="chat-messages"
+                        style="height: calc(100vh - 280px); overflow-y: auto;">
+
+                        <!-- Mensagem de boas-vindas do assistente -->
+                        <div class="message message-assistant">
+                            <i class="icon fas fa-robot"></i>
+                            Olá, eu sou o chatbot <strong>AgenteVirtus</strong>. Estou aqui para te ajudar
+                            a entender seus dados. Todas as minhas respostas são baseadas nos dados que você me
+                            forneceu.
+                            Mas lembre-se, eu sou um chatbot e não tenho consciência própria, então minhas respostas
+                            podem
+                            não ser perfeitas. Sempre revise as respostas antes de tomar decisões importantes.
+                            <span class="message-time">Agora</span>
+                        </div>
+
+                        <!-- Indicador de digitação -->
+                        <div id="typing-indicator" class="typing-indicator">
+                            <em class="icon ni ni-user-fill me-2"></em> Assistente está digitando
+                            <span class="ms-2"></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    </div>
+
+                    <!-- Barra de mensagem fixa na parte inferior -->
+                    <div class="chat-input-area">
+                        <form id="chat-form" method="POST" action="{{ url_for('chatbot') }}">
+                            <input type="hidden" id="ultima-pergunta" name="ultima_pergunta" value="">
+                            <div class="chat-input-container">
+                                <textarea type="text" class="form-control" id="mensagem-input" name="mensagem"
+                                    placeholder="Digite sua mensagem...">{{ mensagem }}</textarea>
+                                <button type="submit" class="btn-send ms-2">
+                                    <em class="icon fas fa-paper-plane"></em>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link href="{{ url_for('static', filename='css/chatbot.css') }}" rel="stylesheet">
+<script>
+    $(document).ready(function () {
+        // Esconder o indicador de digitação
+        $('#typing-indicator').removeClass('active');
+
+        // Rolar para o final das mensagens
+        const chatMessages = $('#chat-messages');
+        if (chatMessages.length) {
+            chatMessages.scrollTop(chatMessages[0].scrollHeight);
+        }
+
+        // Configuração do toggle para exibir/ocultar detalhes
+        $('body').on('click', '.toggle-details', function () {
+            const detalhes = $('.detalhes-analise');
+            const icone = $(this).find('i');
+            const texto = $(this).find('span');
+
+            if (detalhes.is(':visible')) {
+                // Ocultar detalhes
+                detalhes.slideUp(200);
+                icone.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+                texto.text('Ver detalhes da análise');
+            } else {
+                // Mostrar detalhes
+                detalhes.slideDown(200);
+                icone.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+                texto.text('Ocultar detalhes da análise');
+            }
+
+            // Rolar para o final após a animação
+            setTimeout(function () {
+                chatMessages.scrollTop(chatMessages[0].scrollHeight);
+            }, 250);
+        });
+
+        // Capturar e armazenar a pergunta do usuário quando o formulário for enviado
+        $('#chat-form').on('submit', function (e) {
+            e.preventDefault();
+
+            const pergunta = $('#mensagem-input').val();
+            if (!pergunta.trim()) return;
+
+            // Armazenar a pergunta no campo oculto
+            $('#ultima-pergunta').val(pergunta);
+
+            // Adicionar a mensagem do usuário ao chat
+            appendUserMessage(pergunta);
+
+            // Mostrar indicador de digitação
+            $('#typing-indicator').addClass('active');
+
+            // Limpar o campo de input
+            $('#mensagem-input').val('');
+
+            // Enviar a requisição AJAX
+            $.ajax({
+                url: "{{ url_for('chatbot') }}",
+                type: "POST",
+                data: {
+                    mensagem: pergunta
+                },
+                success: function (response) {
+                    // Remover indicador de digitação
+                    $('#typing-indicator').removeClass('active');
+
+                    if (response.status === 'success') {
+                        // Adicionar a resposta do assistente
+                        appendAssistantMessage(response.resposta);
+                    } else {
+                        // Mostrar mensagem de erro
+                        appendAssistantMessage("Ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.");
+                    }
+
+                    // Rolar para o final
+                    const chatMessages = document.getElementById('chat-messages');
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                },
+                error: function (xhr, status, error) {
+                    // Remover indicador de digitação
+                    $('#typing-indicator').removeClass('active');
+
+                    // Mostrar mensagem de erro
+                    appendAssistantMessage("Ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.");
+                    console.error("Erro:", error);
+                }
+            });
+        });
+
+        // Função para adicionar mensagem do usuário
+        function appendUserMessage(message) {
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const html = `
+                <div class="message message-user">
+                    <div class="message-content">
+                        <div class="message-text"><i class="icon fas fa-user"></i> ${message}</div>
+                    </div>
+                    <span class="message-time text-black">${time}</span>
+                </div>
+            `;
+            $('#chat-messages').append(html);
+
+            // Rolar para o final
+            const chatMessages = document.getElementById('chat-messages');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Função para adicionar mensagem do assistente
+        function appendAssistantMessage(message) {
+            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            let respostaDireta = message;
+            let detalhesResposta = null;
+
+            // Se vier objeto (resposta estruturada)
+            if (typeof message === 'object' && message !== null) {
+                if (message.resposta_direta && message.detalhes && message.detalhes.trim() !== "") {
+                    respostaDireta = message.resposta_direta;
+                    detalhesResposta = message.detalhes;
+                } else if (message.resposta_direta) {
+                    respostaDireta = message.resposta_direta;
+                }
+            }
+
+            // Se vier string JSON (fallback antigo)
+            if (typeof message === 'string') {
+                try {
+                    const parsedMessage = JSON.parse(message);
+                    if (parsedMessage.resposta_direta && parsedMessage.detalhes && parsedMessage.detalhes.trim() !== "") {
+                        respostaDireta = parsedMessage.resposta_direta;
+                        detalhesResposta = parsedMessage.detalhes;
+                    } else if (parsedMessage.resposta_direta) {
+                        respostaDireta = parsedMessage.resposta_direta;
+                    }
+                } catch (e) {
+                    respostaDireta = message;
+                }
+            }
+
+            // Ajusta a quebra de linha
+            respostaDireta = respostaDireta.replace('\n', '<br>');
+
+            const html = `
+                <div class="message message-assistant">
+                    <i class="icon fas fa-robot"></i>
+                    <div class="message-content">
+                        <div class="resposta-direta" style="white-space: pre-line;">${respostaDireta}</div>
+                    </div>
+                    <div class="message-time">${time}</div>
+                    <div class="message-copy">
+                        <a href="#" class="text-dark text-black" data-text="${respostaDireta.replace(/"/g, '&quot;')}" onclick="copyToClipboard(this)">
+                            <i class="fas fa-copy"></i>
+                        </a>
+                    </div>
+                </div>
+            `;
+            $('#chat-messages').append(html);
+            const chatMessages = document.getElementById('chat-messages');
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+        }
+    });
+</script>
+{% endblock %}

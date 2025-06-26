@@ -1,0 +1,72 @@
+{% extends 'layout/base.html' %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Executar Tarefas</h6>
+                </div>
+                <div class="card-body">
+                    {% if trigger %}
+                    <form action="/agentesinteligentes/executar_tarefas/{{ equipe.id }}" method="post" id="executarForm" enctype="multipart/form-data">
+                        <input type="hidden" name="equipe_id" value="{{ equipe.id }}">
+
+                        {% for node in equipe.layout.nodes %}
+                        {% if node.type == 'trigger' %}
+                        {% if node.config.type == 'pdf' or node.config.type == 'audio' %}
+                        <div class="mb-3">
+                            <label for="arquivo" class="form-label">Selecione o arquivo.</label>
+                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".pdf" required>
+                        </div>
+                        {% elif node.config.type == 'text' %}
+                        <div class="mb-3">
+                            <label for="texto" class="form-label">Digite o texto</label>
+                            <textarea class="form-control" id="texto" name="texto" rows="15" required></textarea>
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        {% endfor %}
+
+                        <button type="submit" id="executarBtn" class="btn btn-primary">
+                            <i class="fas fa-play"></i> Executar Tarefas
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Fluxo</h6>
+                </div>
+                <div class="card-body">
+                    <div class="accordion accordion-flush" id="accordionFlushExample">
+                        {% for node in equipe.layout.nodes %}
+                        {% if node.type == 'agent' %}
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#flush-collapse{{ loop.index }}" aria-expanded="false"
+                                    aria-controls="flush-collapse{{ loop.index }}">
+                                    {{ node.config.role }}
+                                </button>
+                            </h2>
+                            <div id="flush-collapse{{ loop.index }}" class="accordion-collapse collapse"
+                                data-bs-parent="#accordionFlushExample">
+                                <div class="accordion-body">
+                                    {{ node.config.backstory }}
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

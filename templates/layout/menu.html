@@ -1,0 +1,103 @@
+<ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+
+    <a class="sidebar-brand d-flex align-items-center justify-content-center" href="/">
+        <div class="sidebar-brand-icon">
+            <i class="fa-solid fa-robot"></i>
+        </div>
+        <div class="sidebar-brand-text mx-3">Agente <span class="text-warning">Virtus</span></div>
+    </a>
+
+    <hr class="sidebar-divider my-0">
+    <li class="nav-item">
+        <a class="nav-link" href="/">
+            <i class="fas fa-fw fa-tachometer-alt"></i>
+            <span>Início</span></a>
+    </li>
+
+    <div class="sidebar-heading">
+        Agentes
+    </div>
+    <li class="nav-item">
+        <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#collapseAgentes" aria-expanded="false"
+            aria-controls="collapseAgentes">
+            <i class="fa-solid fa-keyboard"></i>
+            <span>Agentes</span>
+        </a>
+        <div id="collapseAgentes" class="collapse" aria-labelledby="headingAgentes"
+            data-bs-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <h6 class="collapse-header">Agentes inteligentes</h6>
+                <a class="collapse-item" href="{{ url_for('canva') }}">Criar Equipe</a>
+                <a class="collapse-item" href="{{ url_for('listar_equipes_inteligentes') }}">Minhas Equipes</a>
+
+            </div>
+        </div>
+    </li>
+
+    <!-- Ferramentas -->
+    <hr class="sidebar-divider d-none d-md-block">
+    <li class="nav-item">
+        <a class="nav-link" href="/ferramentas/chatbot">
+            <i class="fa-solid fa-robot"></i>
+            <span>Chatbot</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="/ferramentas/transcrever">
+            <i class="fa-solid fa-microphone"></i>
+            <span>Transcrever</span>
+        </a>
+    </li>
+
+
+    <!-- Divider -->
+    <hr class="sidebar-divider d-none d-md-block">
+    <li class="nav-item">
+        <a class="nav-link" href="/delegacia/prompts">
+            <i class="fa-solid fa-keyboard"></i>
+            <span>Prompts</span>
+        </a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" href="/notas">
+            <i class="fa-solid fa-note-sticky"></i>
+            <span>Notas</span>
+        </a>
+    </li>
+
+    <li class="nav-item">
+        <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#collapseGpts"
+            aria-expanded="false" aria-controls="collapseGpts">
+            <i class="fa-solid fa-robot"></i>
+            <span>Assistentes (GPTs)</span>
+        </a>
+        <div id="collapseGpts" class="collapse" aria-labelledby="headingGpts"
+            data-bs-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <h6 class="collapse-header">Ações</h6>
+                <a class="collapse-item" href="/gpts">Meus Assistentes</a>
+                <hr>
+                
+                {% for gpt in gpts %}
+                    <a class="collapse-item" href="/gpts/chat/{{ gpt.id }}">{{ gpt.nome }}</a>
+                {% endfor %}
+            </div>
+        </div>
+    </li>
+
+    <!-- Divider -->
+    <hr class="sidebar-divider d-none d-md-block">
+
+    <li class="nav-item">
+        <a class="nav-link" href="/user/minhaconta">
+            <i class="fa-solid fa-user"></i>
+            <span>Minha Conta</span>
+        </a>
+    </li>
+
+    <!-- Sidebar Toggler (Sidebar) -->
+    <div class="text-center d-none d-md-inline">
+        <button class="rounded-circle border-0" id="sidebarToggle"></button>
+    </div>
+
+</ul>

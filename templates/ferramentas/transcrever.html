@@ -1,0 +1,99 @@
+{% extends "layout/base.html" %}
+
+{% block main %}
+<div class="container-fluid">
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Transcrever Áudio</h1>
+    </div>
+
+    <!-- Content Row -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Upload de Áudio</h6>
+                </div>
+                <div class="card-body">
+                    <form id="formTranscricao" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="arquivo" class="form-label">Selecione o arquivo de áudio</label>
+                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept="audio/*" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="btnTranscrever">
+                            <i class="fas fa-microphone"></i> Transcrever
+                        </button>
+                    </form>
+
+                    <div class="mt-4" id="resultadoTranscricao" style="display: none;">
+                        <h5>Transcrição:</h5>
+                        <div id="textoTranscricao" class="transcricao-box"></div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex gap-2" id="cardFooter" style="display: nones;">
+                    <button class="btn btn-primary" id="btnCopiar" data-text="" onclick="copyToClipboard(this)">
+                        <i class="fas fa-copy"></i> Copiar
+                    </button>
+                    
+                    <form class="m-0" action="/ferramentas/chatbot" method="post">
+                        <input type="hiddden" name="mensagem" id="input-textoTranscricao">
+                        <input type="hiddden" name="chat" value="init">
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-robot"></i> Chatbot
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('formTranscricao').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const btnTranscrever = document.getElementById('btnTranscrever');
+    const formData = new FormData(e.target);
+    
+    try {
+        btnTranscrever.disabled = true;
+        btnTranscrever.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Transcrevendo...';
+        
+        const response = await fetch('/ferramentas/transcrever', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.status === 'success') {
+            document.getElementById('resultadoTranscricao').style.display = 'block';
+            document.getElementById('textoTranscricao').innerHTML = data.transcricao.replace(/\\n/g, '<br>');
+            document.getElementById('input-textoTranscricao').value = data.transcricao;
+            document.getElementById('btnCopiar').setAttribute('data-text', data.transcricao);
+            document.getElementById('cardFooter').style.display = 'block';
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro',
+                text: data.message || 'Erro ao transcrever o áudio'
+            });
+        }
+    } catch (error) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro',
+            text: 'Erro ao processar a requisição'
+        });
+    } finally {
+        btnTranscrever.disabled = false;
+        btnTranscrever.innerHTML = '<i class="fas fa-microphone"></i> Transcrever';
+    }
+});
+</script>
+<style>
+    .transcricao-box {
+        white-space: pre-line;
+    }
+</style>
+{% endblock %}

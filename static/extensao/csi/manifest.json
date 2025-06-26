@@ -1,0 +1,20 @@
+﻿{
+  "name": "Get CSI Cookie",
+  "version": "1.0",
+  "manifest_version": 3,
+  "description": "Recupera o cookie do site CSI",
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "permissions": [
+    "cookies"
+  ],
+  "action": {
+    "default_title": "CSI Cookie",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "32": "logo_32.png"
+    }
+  }
+}
