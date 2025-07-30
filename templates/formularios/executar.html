@@ -1,0 +1,315 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Executar Formulário - {{ formulario.nome }}{% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">
+                            <i class="fas fa-play"></i> {{ formulario.nome }}
+                        </h4>
+                        {% if formulario.descricao %}
+                            <small class="text-muted">{{ formulario.descricao }}</small>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <a href="{{ url_for('formularios.index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="formularioContainer">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando...</span>
+                            </div>
+                            <p class="mt-2">Carregando formulário...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let campos = [];
+
+// Carregar campos ao iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    carregarCampos();
+});
+
+function carregarCampos() {
+    fetch(`/api/formularios/{{ formulario.id }}/campos`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                campos = data.campos;
+                renderizarFormulario();
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            document.getElementById('formularioContainer').innerHTML = 
+                '<div class="alert alert-danger">Erro ao carregar formulário</div>';
+        });
+}
+
+function renderizarFormulario() {
+    const container = document.getElementById('formularioContainer');
+    
+    if (campos.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                <h5 class="text-warning">Formulário sem campos</h5>
+                <p class="text-muted">Este formulário não possui campos configurados.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <form id="formularioDinamico">
+            <div class="row">
+    `;
+    
+    campos.forEach((campo, index) => {
+        html += `
+            <div class="${campo.tamanho_coluna} mb-3">
+                <label for="${campo.nome_campo}" class="form-label">
+                    ${campo.label}
+                    ${campo.obrigatorio ? '<span class="text-danger">*</span>' : ''}
+                </label>
+        `;
+        
+        switch (campo.tipo) {
+            case 'text':
+            case 'email':
+            case 'password':
+            case 'number':
+            case 'date':
+            case 'datetime':
+                html += `
+                    <input type="${campo.tipo}" 
+                           class="form-control" 
+                           id="${campo.nome_campo}" 
+                           name="${campo.nome_campo}"
+                           ${campo.placeholder ? `placeholder="${campo.placeholder}"` : ''}
+                           ${campo.valor_padrao ? `value="${campo.valor_padrao}"` : ''}
+                           ${campo.obrigatorio ? 'required' : ''}
+                           ${campo.validacao ? `pattern="${campo.validacao}"` : ''}>
+                `;
+                break;
+                
+            case 'textarea':
+                html += `
+                    <textarea class="form-control" 
+                              id="${campo.nome_campo}" 
+                              name="${campo.nome_campo}"
+                              rows="4"
+                              ${campo.placeholder ? `placeholder="${campo.placeholder}"` : ''}
+                              ${campo.obrigatorio ? 'required' : ''}>${campo.valor_padrao || ''}</textarea>
+                `;
+                break;
+                
+            case 'select':
+                html += `
+                    <select class="form-select" 
+                            id="${campo.nome_campo}" 
+                            name="${campo.nome_campo}"
+                            ${campo.obrigatorio ? 'required' : ''}>
+                    <option value="">Selecione...</option>
+                `;
+                try {
+                    const opcoes = JSON.parse(campo.opcoes || '[]');
+                    opcoes.forEach(opcao => {
+                        const selected = opcao === campo.valor_padrao ? 'selected' : '';
+                        html += `<option value="${opcao}" ${selected}>${opcao}</option>`;
+                    });
+                } catch (e) {
+                    console.error('Erro ao parsear opções:', e);
+                }
+                html += `</select>`;
+                break;
+                
+            case 'radio':
+                try {
+                    const opcoes = JSON.parse(campo.opcoes || '[]');
+                    opcoes.forEach((opcao, i) => {
+                        const checked = opcao === campo.valor_padrao ? 'checked' : '';
+                        const required = campo.obrigatorio && i === 0 ? 'required' : '';
+                        html += `
+                            <div class="form-check">
+                                <input class="form-check-input" 
+                                       type="radio" 
+                                       id="${campo.nome_campo}_${i}" 
+                                       name="${campo.nome_campo}" 
+                                       value="${opcao}"
+                                       ${checked}
+                                       ${required}>
+                                <label class="form-check-label" for="${campo.nome_campo}_${i}">
+                                    ${opcao}
+                                </label>
+                            </div>
+                        `;
+                    });
+                } catch (e) {
+                    console.error('Erro ao parsear opções:', e);
+                }
+                break;
+                
+            case 'checkbox':
+                try {
+                    const opcoes = JSON.parse(campo.opcoes || '[]');
+                    opcoes.forEach((opcao, i) => {
+                        const checked = campo.valor_padrao && campo.valor_padrao.includes(opcao) ? 'checked' : '';
+                        html += `
+                            <div class="form-check">
+                                <input class="form-check-input" 
+                                       type="checkbox" 
+                                       id="${campo.nome_campo}_${i}" 
+                                       name="${campo.nome_campo}[]" 
+                                       value="${opcao}"
+                                       ${checked}>
+                                <label class="form-check-label" for="${campo.nome_campo}_${i}">
+                                    ${opcao}
+                                </label>
+                            </div>
+                        `;
+                    });
+                } catch (e) {
+                    console.error('Erro ao parsear opções:', e);
+                }
+                break;
+        }
+        
+        html += `
+        </div>
+        `;
+    });
+    
+    html += `
+            </div>
+            <div class="d-flex justify-content-between mt-4">
+                <button type="button" class="btn btn-secondary" onclick="limparFormulario()">
+                    <i class="fas fa-eraser"></i> Limpar
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Salvar Registro
+                </button>
+            </div>
+        </form>
+    `;
+    
+    container.innerHTML = html;
+    
+    // Adicionar evento de submit
+    document.getElementById('formularioDinamico').addEventListener('submit', function(e) {
+        e.preventDefault();
+        salvarRegistro();
+    });
+}
+
+function salvarRegistro() {
+    const form = document.getElementById('formularioDinamico');
+    const formData = new FormData(form);
+    const dados = {};
+    
+    // Coletar dados do formulário
+    campos.forEach(campo => {
+        if (campo.tipo === 'checkbox') {
+            const checkboxes = form.querySelectorAll(`input[name="${campo.nome_campo}[]"]:checked`);
+            dados[campo.nome_campo] = Array.from(checkboxes).map(cb => cb.value);
+        } else {
+            const elemento = form.querySelector(`[name="${campo.nome_campo}"]`);
+            if (elemento) {
+                dados[campo.nome_campo] = elemento.value;
+            }
+        }
+    });
+    
+    // Validar campos obrigatórios
+    let camposFaltando = [];
+    campos.forEach(campo => {
+        if (campo.obrigatorio) {
+            const valor = dados[campo.nome_campo];
+            if (!valor || (Array.isArray(valor) && valor.length === 0)) {
+                camposFaltando.push(campo.label);
+            }
+        }
+    });
+    
+    if (camposFaltando.length > 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Campos obrigatórios',
+            text: `Os seguintes campos são obrigatórios: ${camposFaltando.join(', ')}`
+        });
+        return;
+    }
+    
+    // Enviar dados
+    fetch(`/formularios/{{ formulario.id }}/salvar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dados: dados })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Sucesso!',
+                text: data.message,
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                limparFormulario();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: data.message
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro!',
+            text: 'Ocorreu um erro ao salvar o registro.'
+        });
+    });
+}
+
+function limparFormulario() {
+    const form = document.getElementById('formularioDinamico');
+    if (form) {
+        form.reset();
+        
+        // Restaurar valores padrão
+        campos.forEach(campo => {
+            if (campo.valor_padrao) {
+                const elemento = form.querySelector(`[name="${campo.nome_campo}"]`);
+                if (elemento) {
+                    elemento.value = campo.valor_padrao;
+                }
+            }
+        });
+    }
+}
+</script>
+{% endblock %} 

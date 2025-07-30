@@ -1,0 +1,325 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Editar Registro - {{ formulario.nome }}{% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">
+                            <i class="fas fa-edit"></i> Editar Registro - {{ formulario.nome }}
+                        </h4>
+                        <small class="text-muted">ID: {{ registro.id }} | Criado em: {{ registro.criado_em.strftime('%d/%m/%Y %H:%M') }}</small>
+                    </div>
+                    <div>
+                        <a href="{{ url_for('formularios.registros', id=formulario.id) }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <form id="formularioEditar" data-registro-id="{{ registro.id }}">
+                        <div class="row">
+                            {% for campo in formulario.campos %}
+                                {% if campo.ativo %}
+                                    <div class="{{ campo.tamanho_coluna }}">
+                                        <div class="mb-3">
+                                            <label for="{{ campo.nome_campo }}" class="form-label">
+                                                {{ campo.label }}
+                                                {% if campo.obrigatorio %}
+                                                    <span class="text-danger">*</span>
+                                                {% endif %}
+                                            </label>
+                                            
+                                            {% if campo.tipo == 'text' %}
+                                                <input type="text" 
+                                                       class="form-control" 
+                                                       id="{{ campo.nome_campo }}" 
+                                                       name="{{ campo.nome_campo }}"
+                                                       placeholder="{{ campo.placeholder or '' }}"
+                                                       value="{{ campo.valor_padrao or '' }}"
+                                                       {% if campo.obrigatorio %}required{% endif %}>
+                                                       
+                                            {% elif campo.tipo == 'email' %}
+                                                <input type="email" 
+                                                       class="form-control" 
+                                                       id="{{ campo.nome_campo }}" 
+                                                       name="{{ campo.nome_campo }}"
+                                                       placeholder="{{ campo.placeholder or '' }}"
+                                                       value="{{ campo.valor_padrao or '' }}"
+                                                       {% if campo.obrigatorio %}required{% endif %}>
+                                                       
+                                            {% elif campo.tipo == 'number' %}
+                                                <input type="number" 
+                                                       class="form-control" 
+                                                       id="{{ campo.nome_campo }}" 
+                                                       name="{{ campo.nome_campo }}"
+                                                       placeholder="{{ campo.placeholder or '' }}"
+                                                       value="{{ campo.valor_padrao or '' }}"
+                                                       {% if campo.obrigatorio %}required{% endif %}>
+                                                       
+                                            {% elif campo.tipo == 'date' %}
+                                                <input type="date" 
+                                                       class="form-control" 
+                                                       id="{{ campo.nome_campo }}" 
+                                                       name="{{ campo.nome_campo }}"
+                                                       value="{{ campo.valor_padrao or '' }}"
+                                                       {% if campo.obrigatorio %}required{% endif %}>
+                                                       
+                                            {% elif campo.tipo == 'datetime' %}
+                                                <input type="datetime-local" 
+                                                       class="form-control" 
+                                                       id="{{ campo.nome_campo }}" 
+                                                       name="{{ campo.nome_campo }}"
+                                                       value="{{ campo.valor_padrao or '' }}"
+                                                       {% if campo.obrigatorio %}required{% endif %}>
+                                                       
+                                            {% elif campo.tipo == 'textarea' %}
+                                                <textarea class="form-control" 
+                                                          id="{{ campo.nome_campo }}" 
+                                                          name="{{ campo.nome_campo }}"
+                                                          rows="4"
+                                                          placeholder="{{ campo.placeholder or '' }}"
+                                                          {% if campo.obrigatorio %}required{% endif %}>{{ campo.valor_padrao or '' }}</textarea>
+                                                          
+                                            {% elif campo.tipo == 'select' %}
+                                                <select class="form-control" 
+                                                        id="{{ campo.nome_campo }}" 
+                                                        name="{{ campo.nome_campo }}"
+                                                        {% if campo.obrigatorio %}required{% endif %}>
+                                                    <option value="">Selecione uma opção</option>
+                                                    {% if campo.opcoes %}
+                                                        {% set opcoes = campo.opcoes|from_json %}
+                                                        {% for opcao in opcoes %}
+                                                            <option value="{{ opcao }}" {% if opcao == campo.valor_padrao %}selected{% endif %}>
+                                                                {{ opcao }}
+                                                            </option>
+                                                        {% endfor %}
+                                                    {% endif %}
+                                                </select>
+                                                
+                                            {% elif campo.tipo == 'radio' %}
+                                                <div class="form-check-group">
+                                                    {% if campo.opcoes %}
+                                                        {% set opcoes = campo.opcoes|from_json %}
+                                                        {% for opcao in opcoes %}
+                                                            <div class="form-check">
+                                                                <input class="form-check-input" 
+                                                                       type="radio" 
+                                                                       name="{{ campo.nome_campo }}" 
+                                                                       id="{{ campo.nome_campo }}_{{ loop.index }}"
+                                                                       value="{{ opcao }}"
+                                                                       {% if opcao == campo.valor_padrao %}checked{% endif %}
+                                                                       {% if campo.obrigatorio %}required{% endif %}>
+                                                                <label class="form-check-label" for="{{ campo.nome_campo }}_{{ loop.index }}">
+                                                                    {{ opcao }}
+                                                                </label>
+                                                            </div>
+                                                        {% endfor %}
+                                                    {% endif %}
+                                                </div>
+                                                
+                                            {% elif campo.tipo == 'checkbox' %}
+                                                <div class="form-check-group">
+                                                    {% if campo.opcoes %}
+                                                        {% set opcoes = campo.opcoes|from_json %}
+                                                        {% for opcao in opcoes %}
+                                                            <div class="form-check">
+                                                                <input class="form-check-input" 
+                                                                       type="checkbox" 
+                                                                       name="{{ campo.nome_campo }}" 
+                                                                       id="{{ campo.nome_campo }}_{{ loop.index }}"
+                                                                       value="{{ opcao }}"
+                                                                       {% if campo.valor_padrao and opcao in campo.valor_padrao|from_json %}checked{% endif %}>
+                                                                <label class="form-check-label" for="{{ campo.nome_campo }}_{{ loop.index }}">
+                                                                    {{ opcao }}
+                                                                </label>
+                                                            </div>
+                                                        {% endfor %}
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+                                            
+                                            {% if campo.validacao %}
+                                                <div class="form-text">{{ campo.validacao }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <button type="button" class="btn btn-secondary" onclick="voltar()">
+                                        <i class="fas fa-times"></i> Cancelar
+                                    </button>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Salvar Alterações
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Carregar dados do registro
+document.addEventListener('DOMContentLoaded', function() {
+    carregarDadosRegistro();
+});
+
+function carregarDadosRegistro() {
+    const registroId = document.getElementById('formularioEditar').dataset.registroId;
+    
+    fetch(`/api/formularios/{{ formulario.id }}/registros`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const registro = data.registros.find(r => r.id == registroId);
+                if (registro) {
+                    preencherFormulario(registro.dados);
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar dados:', error);
+        });
+}
+
+function preencherFormulario(dados) {
+    // Preencher campos de texto, email, number, date, datetime
+    const camposTexto = ['text', 'email', 'number', 'date', 'datetime'];
+    camposTexto.forEach(tipo => {
+        document.querySelectorAll(`input[type="${tipo}"]`).forEach(input => {
+            const nomeCampo = input.name;
+            if (dados[nomeCampo]) {
+                input.value = dados[nomeCampo];
+            }
+        });
+    });
+    
+    // Preencher textareas
+    document.querySelectorAll('textarea').forEach(textarea => {
+        const nomeCampo = textarea.name;
+        if (dados[nomeCampo]) {
+            textarea.value = dados[nomeCampo];
+        }
+    });
+    
+    // Preencher selects
+    document.querySelectorAll('select').forEach(select => {
+        const nomeCampo = select.name;
+        if (dados[nomeCampo]) {
+            select.value = dados[nomeCampo];
+        }
+    });
+    
+    // Preencher radios
+    document.querySelectorAll('input[type="radio"]').forEach(radio => {
+        const nomeCampo = radio.name;
+        if (dados[nomeCampo] && dados[nomeCampo] === radio.value) {
+            radio.checked = true;
+        }
+    });
+    
+    // Preencher checkboxes
+    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        const nomeCampo = checkbox.name;
+        if (dados[nomeCampo]) {
+            if (Array.isArray(dados[nomeCampo])) {
+                checkbox.checked = dados[nomeCampo].includes(checkbox.value);
+            } else {
+                checkbox.checked = dados[nomeCampo] === checkbox.value;
+            }
+        }
+    });
+}
+
+// Submissão do formulário
+document.getElementById('formularioEditar').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const dados = {};
+    
+    // Coletar dados do formulário
+    for (let [name, value] of formData.entries()) {
+        if (dados[name]) {
+            // Se já existe, converter para array
+            if (!Array.isArray(dados[name])) {
+                dados[name] = [dados[name]];
+            }
+            dados[name].push(value);
+        } else {
+            dados[name] = value;
+        }
+    }
+    
+    // Coletar checkboxes não selecionados
+    document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        if (!checkbox.checked) {
+            const nomeCampo = checkbox.name;
+            if (dados[nomeCampo] && Array.isArray(dados[nomeCampo])) {
+                dados[nomeCampo] = dados[nomeCampo].filter(val => val !== checkbox.value);
+            }
+        }
+    });
+    
+    // Enviar dados
+    const registroId = this.dataset.registroId;
+    
+    fetch(`/formularios/registros/${registroId}/atualizar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            dados: dados
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'Sucesso!',
+                text: data.message,
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                window.location.href = `/formularios/{{ formulario.id }}/registros`;
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: data.message
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro!',
+            text: 'Ocorreu um erro ao salvar o registro.'
+        });
+    });
+});
+
+function voltar() {
+    window.location.href = `/formularios/{{ formulario.id }}/registros`;
+}
+</script>
+{% endblock %} 

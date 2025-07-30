@@ -197,6 +197,110 @@ class VinculoNota(db.Model):
         return f'<VinculoNota {self.nota_origem_id} -> {self.nota_destino_id}>'
 
 ###########################################################################################
+# SISTEMA DE FORMULÁRIOS DINÂMICOS
+###########################################################################################
+
+class Formulario(db.Model):
+    """Modelo principal para formulários dinâmicos"""
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(200), nullable=False)
+    descricao = db.Column(db.Text, nullable=True)
+    ativo = db.Column(db.Boolean, default=True)
+    menu_ordem = db.Column(db.Integer, nullable=True)  # Ordem no menu (0 = não aparece no menu)
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relacionamentos
+    usuario = db.relationship('Usuario', backref=db.backref('formularios', lazy=True))
+    campos = db.relationship('CampoFormulario', backref='formulario', lazy=True, cascade='all, delete-orphan', order_by='CampoFormulario.ordem')
+    registros = db.relationship('RegistroFormulario', backref='formulario', lazy=True, cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<Formulario {self.nome}>'
+    
+    def to_dict(self):
+        """Converte o formulário para dicionário"""
+        return {
+            'id': self.id,
+            'nome': self.nome,
+            'descricao': self.descricao,
+            'ativo': self.ativo,
+            'menu_ordem': self.menu_ordem,
+            'criado_em': self.criado_em.isoformat() if self.criado_em else None,
+            'atualizado_em': self.atualizado_em.isoformat() if self.atualizado_em else None,
+            'campos_count': len(self.campos),
+            'registros_count': len(self.registros)
+        }
+
+class CampoFormulario(db.Model):
+    """Campos individuais de cada formulário"""
+    id = db.Column(db.Integer, primary_key=True)
+    formulario_id = db.Column(db.Integer, db.ForeignKey('formulario.id'), nullable=False)
+    label = db.Column(db.String(200), nullable=False)
+    tipo = db.Column(db.String(50), nullable=False)  # text, email, password, number, date, datetime, textarea, select, checkbox, radio
+    nome_campo = db.Column(db.String(100), nullable=False)  # Nome do campo no HTML
+    placeholder = db.Column(db.String(200), nullable=True)
+    valor_padrao = db.Column(db.String(500), nullable=True)
+    obrigatorio = db.Column(db.Boolean, default=False)
+    tamanho_coluna = db.Column(db.String(20), default='col-lg-12')  # col-lg-4, col-lg-6, etc
+    ordem = db.Column(db.Integer, nullable=False, default=0)
+    opcoes = db.Column(db.Text, nullable=True)  # JSON para campos select, radio, checkbox
+    validacao = db.Column(db.String(200), nullable=True)  # regex, min, max, etc
+    ativo = db.Column(db.Boolean, default=True)
+    
+    def __repr__(self):
+        return f'<CampoFormulario {self.label} ({self.tipo})>'
+    
+    def to_dict(self):
+        """Converte o campo para dicionário"""
+        return {
+            'id': self.id,
+            'label': self.label,
+            'tipo': self.tipo,
+            'nome_campo': self.nome_campo,
+            'placeholder': self.placeholder,
+            'valor_padrao': self.valor_padrao,
+            'obrigatorio': self.obrigatorio,
+            'tamanho_coluna': self.tamanho_coluna,
+            'ordem': self.ordem,
+            'opcoes': self.opcoes,
+            'validacao': self.validacao,
+            'ativo': self.ativo
+        }
+
+class RegistroFormulario(db.Model):
+    """Registros/dados salvos de cada formulário"""
+    id = db.Column(db.Integer, primary_key=True)
+    formulario_id = db.Column(db.Integer, db.ForeignKey('formulario.id'), nullable=False)
+    dados = db.Column(db.Text, nullable=False)  # JSON com os dados do formulário
+    usuario_id = db.Column(db.Integer, db.ForeignKey('usuario.id'), nullable=True)
+    criado_em = db.Column(db.DateTime, default=datetime.utcnow)
+    atualizado_em = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relacionamentos
+    usuario = db.relationship('Usuario', backref=db.backref('registros_formularios', lazy=True))
+    
+    def __repr__(self):
+        return f'<RegistroFormulario {self.id} - Formulario {self.formulario_id}>'
+    
+    def to_dict(self):
+        """Converte o registro para dicionário"""
+        import json
+        try:
+            dados_dict = json.loads(self.dados) if self.dados else {}
+        except:
+            dados_dict = {}
+        
+        return {
+            'id': self.id,
+            'formulario_id': self.formulario_id,
+            'dados': dados_dict,
+            'criado_em': self.criado_em.isoformat() if self.criado_em else None,
+            'atualizado_em': self.atualizado_em.isoformat() if self.atualizado_em else None
+        }
+
+###########################################################################################
 # SEED
 ###########################################################################################
 

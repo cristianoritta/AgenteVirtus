@@ -1,0 +1,155 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Formulários Dinâmicos{% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">
+                        <i class="fas fa-list"></i> Formulários Dinâmicos
+                    </h4>
+                    <a href="{{ url_for('formularios.novo') }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Novo Formulário
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if formularios %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Nome</th>
+                                        <th>Descrição</th>
+                                        <th>Campos</th>
+                                        <th>Registros</th>
+                                        <th>Status</th>
+                                        <th>Criado em</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for formulario in formularios %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ formulario.nome }}</strong>
+                                        </td>
+                                        <td>
+                                            {% if formulario.descricao %}
+                                                {{ formulario.descricao[:50] }}{% if formulario.descricao|length > 50 %}...{% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Sem descrição</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ formulario.campos|length }} campos</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">{{ formulario.registros|length }} registros</span>
+                                        </td>
+                                        <td>
+                                            {% if formulario.ativo %}
+                                                <span class="badge bg-success">Ativo</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Inativo</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {{ formulario.criado_em.strftime('%d/%m/%Y %H:%M') }}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <a href="{{ url_for('formularios.campos', id=formulario.id) }}" 
+                                                   class="btn btn-outline-primary" 
+                                                   title="Gerenciar Campos">
+                                                    <i class="fas fa-cogs"></i> Campos
+                                                </a>
+                                                <a href="{{ url_for('formularios.registros', id=formulario.id) }}" 
+                                                   class="btn btn-outline-primary" 
+                                                   title="Ver Registros">
+                                                    <i class="fas fa-database"></i> Registros
+                                                </a>
+                                                <a href="{{ url_for('formularios.executar', id=formulario.id) }}" 
+                                                   class="btn btn-outline-success" 
+                                                   title="Executar Formulário">
+                                                    <i class="fas fa-play"></i>
+                                                </a>                                                
+                                                <a href="{{ url_for('formularios.editar', id=formulario.id) }}" 
+                                                   class="btn btn-outline-primary" 
+                                                   title="Editar">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <button type="button" 
+                                                        class="btn btn-outline-danger" 
+                                                        title="Excluir"
+                                                        onclick="excluirFormulario({{ formulario.id }})">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Nenhum formulário encontrado</h5>
+                            <p class="text-muted">Crie seu primeiro formulário dinâmico para começar.</p>
+                            <a href="{{ url_for('formularios.novo') }}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Criar Formulário
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function excluirFormulario(id) {
+    if (confirm('Tem certeza que deseja excluir este formulário? Esta ação não pode ser desfeita.')) {
+        fetch(`/formularios/${id}/excluir`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sucesso!',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro!',
+                    text: data.message
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: 'Ocorreu um erro ao excluir o formulário.'
+            });
+        });
+    }
+}
+</script>
+{% endblock %} 

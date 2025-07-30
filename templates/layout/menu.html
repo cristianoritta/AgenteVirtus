@@ -7,7 +7,6 @@
         <div class="sidebar-brand-text mx-3">Agente <span class="text-warning">Virtus</span></div>
     </a>
 
-    <hr class="sidebar-divider my-0">
     <li class="nav-item">
         <a class="nav-link" href="/">
             <i class="fas fa-fw fa-tachometer-alt"></i>
@@ -42,7 +41,10 @@
     </li>
 
     <!-- Ferramentas -->
-    <hr class="sidebar-divider d-none d-md-block">
+    <hr class="sidebar-divider">
+    <div class="sidebar-heading">
+        Ferramentas
+    </div>
     <li class="nav-item">
         <a class="nav-link" href="/ferramentas/chatbot">
             <i class="fa-solid fa-robot"></i>
@@ -63,7 +65,36 @@
     </li>
 
     <!-- Divider -->
-    <hr class="sidebar-divider d-none d-md-block">
+    <hr class="sidebar-divider">
+    <div class="sidebar-heading">
+        Formulários
+    </div>
+    <!-- Formulários -->
+    <li class="nav-item">
+        <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#collapseFormularios" aria-expanded="false"
+            aria-controls="collapseFormularios">
+            <i class="fa-solid fa-clipboard-list"></i>
+            <span>Formulários</span>
+        </a>
+        <div id="collapseFormularios" class="collapse" aria-labelledby="headingFormularios" data-bs-parent="#accordionSidebar">
+            <div class="bg-white py-2 collapse-inner rounded">
+                <h6 class="collapse-header">Gerenciar Formulários</h6>
+                <a class="collapse-item" href="{{ url_for('formularios.index') }}">Todos os Formulários</a>
+                <a class="collapse-item" href="{{ url_for('formularios.novo') }}">Criar Formulário</a>
+                
+                {% if formularios %}
+                <hr>
+                <h6 class="collapse-header">Formulários Disponíveis</h6>
+                {% for formulario in formularios %}
+                <a class="collapse-item" href="{{ url_for('formularios.registros', id=formulario.id) }}">{{ formulario.nome }}</a>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </li>
+
+    <!-- Divider -->
+    <hr class="sidebar-divider">
     <li class="nav-item">
         <a class="nav-link" href="/notas">
             <i class="fa-solid fa-note-sticky"></i>
@@ -97,7 +128,7 @@
     </li>
 
     <!-- Divider -->
-    <hr class="sidebar-divider d-none d-md-block">
+    <hr class="sidebar-divider">
 
     <li class="nav-item">
         <a class="nav-link" href="/minhaconta">

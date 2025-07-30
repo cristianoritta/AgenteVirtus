@@ -6,6 +6,7 @@ from controllers.PesquisarController import PesquisarController
 from controllers.AssistentesController import AssistentesController
 from controllers.ConversaController import ConversaController
 from controllers.NotasController import NotasController
+from controllers.FormulariosController import formularios_bp
 from controllers.IaController import testar_api_especifica, testar_api_ia, testar_chatbot
 
 from models.models import ApiIa
@@ -18,6 +19,9 @@ def init_routes(app):
     """
     Inicializa todas as rotas da aplicação
     """
+    
+    # Registra o blueprint de formulários
+    app.register_blueprint(formularios_bp)
     
     # Rota da página inicial
     @app.route('/')

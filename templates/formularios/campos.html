@@ -1,0 +1,571 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Gerenciar Campos - {{ formulario.nome }}{% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">
+                            <i class="fas fa-cogs"></i> Gerenciar Campos
+                        </h4>
+                        <small class="text-muted">{{ formulario.nome }}</small>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-primary" onclick="abrirModalNovoCampo()">
+                            <i class="fas fa-plus"></i> Adicionar Campo
+                        </button>
+                        <a href="{{ url_for('formularios.index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="camposContainer">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Carregando...</span>
+                            </div>
+                            <p class="mt-2">Carregando campos...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo Campo -->
+<div class="modal fade" id="modalNovoCampo" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Adicionar Novo Campo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formNovoCampo">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="label" class="form-label">Label *</label>
+                                <input type="text" class="form-control" id="label" name="label" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tipo" class="form-label">Tipo *</label>
+                                <select class="form-select" id="tipo" name="tipo" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="text">Texto</option>
+                                    <option value="email">Email</option>
+                                    <option value="password">Senha</option>
+                                    <option value="number">Número</option>
+                                    <option value="date">Data</option>
+                                    <option value="datetime">Data e Hora</option>
+                                    <option value="textarea">Área de Texto</option>
+                                    <option value="select">Seleção</option>
+                                    <option value="checkbox">Checkbox</option>
+                                    <option value="radio">Radio</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="nome_campo" class="form-label">Nome do Campo *</label>
+                                <input type="text" class="form-control" id="nome_campo" name="nome_campo" required>
+                                <small class="form-text text-muted">Nome usado no HTML (sem espaços)</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="tamanho_coluna" class="form-label">Tamanho da Coluna</label>
+                                <select class="form-select" id="tamanho_coluna" name="tamanho_coluna">
+                                    <option value="col-lg-12">Largura Total</option>
+                                    <option value="col-lg-6">Meia Largura</option>
+                                    <option value="col-lg-4">Um Terço</option>
+                                    <option value="col-lg-3">Um Quarto</option>
+                                    <option value="col-lg-2">Um Sexto</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="placeholder" class="form-label">Placeholder</label>
+                                <input type="text" class="form-control" id="placeholder" name="placeholder">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="valor_padrao" class="form-label">Valor Padrão</label>
+                                <input type="text" class="form-control" id="valor_padrao" name="valor_padrao">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="obrigatorio" name="obrigatorio">
+                            <label class="form-check-label" for="obrigatorio">
+                                Campo obrigatório
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="opcoesContainer" style="display: none;">
+                        <div class="mb-3">
+                            <label for="opcoes" class="form-label">Opções (uma por linha)</label>
+                            <textarea class="form-control" id="opcoes" name="opcoes" rows="4" 
+                                      placeholder="Opção 1&#10;Opção 2&#10;Opção 3"></textarea>
+                            <small class="form-text text-muted">Digite uma opção por linha</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="validacao" class="form-label">Validação (Regex)</label>
+                        <input type="text" class="form-control" id="validacao" name="validacao" 
+                               placeholder="Ex: ^[0-9]{11}$ para CPF">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarCampo()">Salvar Campo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Editar Campo -->
+<div class="modal fade" id="modalEditarCampo" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Campo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formEditarCampo">
+                    <input type="hidden" id="edit_campo_id">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_label" class="form-label">Label *</label>
+                                <input type="text" class="form-control" id="edit_label" name="label" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_tipo" class="form-label">Tipo *</label>
+                                <select class="form-select" id="edit_tipo" name="tipo" required>
+                                    <option value="">Selecione...</option>
+                                    <option value="text">Texto</option>
+                                    <option value="email">Email</option>
+                                    <option value="password">Senha</option>
+                                    <option value="number">Número</option>
+                                    <option value="date">Data</option>
+                                    <option value="datetime">Data e Hora</option>
+                                    <option value="textarea">Área de Texto</option>
+                                    <option value="select">Seleção</option>
+                                    <option value="checkbox">Checkbox</option>
+                                    <option value="radio">Radio</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_nome_campo" class="form-label">Nome do Campo *</label>
+                                <input type="text" class="form-control" id="edit_nome_campo" name="nome_campo" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_tamanho_coluna" class="form-label">Tamanho da Coluna</label>
+                                <select class="form-select" id="edit_tamanho_coluna" name="tamanho_coluna">
+                                    <option value="col-lg-12">Largura Total</option>
+                                    <option value="col-lg-6">Meia Largura</option>
+                                    <option value="col-lg-4">Um Terço</option>
+                                    <option value="col-lg-3">Um Quarto</option>
+                                    <option value="col-lg-2">Um Sexto</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_placeholder" class="form-label">Placeholder</label>
+                                <input type="text" class="form-control" id="edit_placeholder" name="placeholder">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_valor_padrao" class="form-label">Valor Padrão</label>
+                                <input type="text" class="form-control" id="edit_valor_padrao" name="valor_padrao">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="edit_obrigatorio" name="obrigatorio">
+                            <label class="form-check-label" for="edit_obrigatorio">
+                                Campo obrigatório
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div id="editOpcoesContainer" style="display: none;">
+                        <div class="mb-3">
+                            <label for="edit_opcoes" class="form-label">Opções (uma por linha)</label>
+                            <textarea class="form-control" id="edit_opcoes" name="opcoes" rows="4"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_validacao" class="form-label">Validação (Regex)</label>
+                        <input type="text" class="form-control" id="edit_validacao" name="validacao">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="atualizarCampo()">Atualizar Campo</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let campos = [];
+
+// Carregar campos ao iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    carregarCampos();
+});
+
+function carregarCampos() {
+    fetch(`/api/formularios/{{ formulario.id }}/campos`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                campos = data.campos;
+                renderizarCampos();
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            document.getElementById('camposContainer').innerHTML = 
+                '<div class="alert alert-danger">Erro ao carregar campos</div>';
+        });
+}
+
+function renderizarCampos() {
+    const container = document.getElementById('camposContainer');
+    
+    if (campos.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-5">
+                <i class="fas fa-plus-circle fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">Nenhum campo adicionado</h5>
+                <p class="text-muted">Adicione campos para criar seu formulário dinâmico.</p>
+                <button type="button" class="btn btn-primary" onclick="abrirModalNovoCampo()">
+                    <i class="fas fa-plus"></i> Adicionar Primeiro Campo
+                </button>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="row" id="camposSortable">
+    `;
+    
+    campos.forEach((campo, index) => {
+        html += `
+            <div class="col-12 mb-3" data-campo-id="${campo.id}">
+                <div class="card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-grip-vertical text-muted me-2" style="cursor: move;"></i>
+                                    <h6 class="mb-0">${campo.label}</h6>
+                                    <span class="badge bg-secondary ms-2">${campo.tipo}</span>
+                                    ${campo.obrigatorio ? '<span class="badge bg-danger ms-1">Obrigatório</span>' : ''}
+                                    <span class="badge bg-info ms-1">${campo.tamanho_coluna}</span>
+                                </div>
+                                <small class="text-muted">Campo: ${campo.nome_campo}</small>
+                                ${campo.placeholder ? `<br><small class="text-muted">Placeholder: ${campo.placeholder}</small>` : ''}
+                            </div>
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-warning" 
+                                        onclick="editarCampo(${campo.id})" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                        onclick="excluirCampo(${campo.id})" title="Excluir">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    
+    container.innerHTML = html;
+    
+    // Inicializar drag and drop
+    initSortable();
+}
+
+function initSortable() {
+    const container = document.getElementById('camposSortable');
+    if (container) {
+        new Sortable(container, {
+            animation: 150,
+            handle: '.fa-grip-vertical',
+            onEnd: function(evt) {
+                const camposIds = Array.from(container.children).map(el => 
+                    parseInt(el.getAttribute('data-campo-id'))
+                );
+                
+                fetch('/formularios/campos/reordenar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ campos_ids: camposIds })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        carregarCampos();
+                    }
+                });
+            }
+        });
+    }
+}
+
+function abrirModalNovoCampo() {
+    document.getElementById('formNovoCampo').reset();
+    document.getElementById('opcoesContainer').style.display = 'none';
+    new bootstrap.Modal(document.getElementById('modalNovoCampo')).show();
+}
+
+function salvarCampo() {
+    const formData = {
+        label: document.getElementById('label').value,
+        tipo: document.getElementById('tipo').value,
+        nome_campo: document.getElementById('nome_campo').value,
+        placeholder: document.getElementById('placeholder').value,
+        valor_padrao: document.getElementById('valor_padrao').value,
+        obrigatorio: document.getElementById('obrigatorio').checked,
+        tamanho_coluna: document.getElementById('tamanho_coluna').value,
+        opcoes: document.getElementById('opcoes').value.split('\n').filter(op => op.trim()),
+        validacao: document.getElementById('validacao').value
+    };
+    
+    fetch(`/formularios/{{ formulario.id }}/campos/adicionar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalNovoCampo')).hide();
+            Swal.fire({
+                icon: 'success',
+                title: 'Sucesso!',
+                text: data.message,
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                carregarCampos();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: data.message
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro!',
+            text: 'Ocorreu um erro ao salvar o campo.'
+        });
+    });
+}
+
+function editarCampo(campoId) {
+    const campo = campos.find(c => c.id === campoId);
+    if (!campo) return;
+    
+    document.getElementById('edit_campo_id').value = campo.id;
+    document.getElementById('edit_label').value = campo.label;
+    document.getElementById('edit_tipo').value = campo.tipo;
+    document.getElementById('edit_nome_campo').value = campo.nome_campo;
+    document.getElementById('edit_placeholder').value = campo.placeholder || '';
+    document.getElementById('edit_valor_padrao').value = campo.valor_padrao || '';
+    document.getElementById('edit_obrigatorio').checked = campo.obrigatorio;
+    document.getElementById('edit_tamanho_coluna').value = campo.tamanho_coluna;
+    document.getElementById('edit_validacao').value = campo.validacao || '';
+    
+    // Mostrar/ocultar opções baseado no tipo
+    const opcoesContainer = document.getElementById('editOpcoesContainer');
+    if (['select', 'radio', 'checkbox'].includes(campo.tipo)) {
+        opcoesContainer.style.display = 'block';
+        try {
+            const opcoes = JSON.parse(campo.opcoes || '[]');
+            document.getElementById('edit_opcoes').value = opcoes.join('\n');
+        } catch {
+            document.getElementById('edit_opcoes').value = '';
+        }
+    } else {
+        opcoesContainer.style.display = 'none';
+    }
+    
+    new bootstrap.Modal(document.getElementById('modalEditarCampo')).show();
+}
+
+function atualizarCampo() {
+    const campoId = document.getElementById('edit_campo_id').value;
+    const formData = {
+        label: document.getElementById('edit_label').value,
+        tipo: document.getElementById('edit_tipo').value,
+        nome_campo: document.getElementById('edit_nome_campo').value,
+        placeholder: document.getElementById('edit_placeholder').value,
+        valor_padrao: document.getElementById('edit_valor_padrao').value,
+        obrigatorio: document.getElementById('edit_obrigatorio').checked,
+        tamanho_coluna: document.getElementById('edit_tamanho_coluna').value,
+        opcoes: document.getElementById('edit_opcoes').value.split('\n').filter(op => op.trim()),
+        validacao: document.getElementById('edit_validacao').value
+    };
+    
+    fetch(`/formularios/campos/${campoId}/editar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('modalEditarCampo')).hide();
+            Swal.fire({
+                icon: 'success',
+                title: 'Sucesso!',
+                text: data.message,
+                timer: 2000,
+                showConfirmButton: false
+            }).then(() => {
+                carregarCampos();
+            });
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: data.message
+            });
+        }
+    })
+    .catch(error => {
+        console.error('Erro:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Erro!',
+            text: 'Ocorreu um erro ao atualizar o campo.'
+        });
+    });
+}
+
+function excluirCampo(campoId) {
+    if (confirm('Tem certeza que deseja excluir este campo?')) {
+        fetch(`/formularios/campos/${campoId}/excluir`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sucesso!',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    carregarCampos();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro!',
+                    text: data.message
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: 'Ocorreu um erro ao excluir o campo.'
+            });
+        });
+    }
+}
+
+// Mostrar/ocultar opções baseado no tipo
+document.getElementById('tipo').addEventListener('change', function() {
+    const opcoesContainer = document.getElementById('opcoesContainer');
+    if (['select', 'radio', 'checkbox'].includes(this.value)) {
+        opcoesContainer.style.display = 'block';
+    } else {
+        opcoesContainer.style.display = 'none';
+    }
+});
+
+document.getElementById('edit_tipo').addEventListener('change', function() {
+    const opcoesContainer = document.getElementById('editOpcoesContainer');
+    if (['select', 'radio', 'checkbox'].includes(this.value)) {
+        opcoesContainer.style.display = 'block';
+    } else {
+        opcoesContainer.style.display = 'none';
+    }
+});
+</script>
+
+<!-- Sortable.js -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+{% endblock %} 

@@ -1,0 +1,464 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Registros - {{ formulario.nome }}{% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">
+                            <i class="fas fa-database"></i> Registros - {{ formulario.nome }}
+                        </h4>
+                        <small class="text-muted">{{ registros|length }} registros encontrados</small>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-outline-info me-2" onclick="limparFiltros()">
+                            <i class="fas fa-filter"></i> Limpar Filtros
+                        </button>
+                        <a href="{{ url_for('formularios.executar', id=formulario.id) }}" class="btn btn-success">
+                            <i class="fas fa-plus"></i> Novo Registro
+                        </a>
+                        <a href="{{ url_for('formularios.index') }}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Voltar
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if registros %}
+                        <div class="table-responsive">
+                            <table id="tabelaRegistros" class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        {% for campo in formulario.campos %}
+                                            {% if campo.ativo %}
+                                                <th>{{ campo.label }}</th>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <th>Criado em</th>
+                                        <th>Ações</th>
+                                    </tr>
+                                    <tr>
+                                        <th>
+                                            <input type="text" class="form-control form-control-sm" placeholder="Filtrar ID">
+                                        </th>
+                                        {% for campo in formulario.campos %}
+                                            {% if campo.ativo %}
+                                                <th>
+                                                    <input type="text" class="form-control form-control-sm" placeholder="Filtrar {{ campo.label }}">
+                                                </th>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <th>
+                                            <input type="text" class="form-control form-control-sm" placeholder="Filtrar Data">
+                                        </th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for registro in registros %}
+                                    <tr>
+                                        <td>{{ registro.id }}</td>
+                                        {% for campo in formulario.campos %}
+                                            {% if campo.ativo %}
+                                                <td>
+                                                    {% set dados_registro = registro.dados|from_json %}
+                                                    {% set valor = dados_registro.get(campo.nome_campo, '') %}
+                                                    {% if valor %}
+                                                        {% if campo.tipo == 'textarea' %}
+                                                            <span class="text-truncate d-inline-block" style="max-width: 200px;" title="{{ valor }}">
+                                                                {{ valor[:100] }}{% if valor|length > 100 %}...{% endif %}
+                                                            </span>
+                                                        {% elif campo.tipo == 'select' or campo.tipo == 'radio' %}
+                                                            {{ valor }}
+                                                        {% elif campo.tipo == 'checkbox' %}
+                                                            {% if valor is iterable and valor is not string %}
+                                                                {{ valor|join(', ') }}
+                                                            {% else %}
+                                                                {{ valor }}
+                                                            {% endif %}
+                                                        {% elif campo.tipo == 'date' %}
+                                                             {% if valor %}
+                                                                 {{ valor|strftime('%d/%m/%Y') }}
+                                                             {% else %}
+                                                                 <em class="text-muted">Vazio</em>
+                                                             {% endif %}
+                                                        {% elif campo.tipo == 'datetime' %}
+                                                             {% if valor %}
+                                                                 {{ valor|strftime('%d/%m/%Y %H:%M') }}
+                                                             {% else %}
+                                                                 <em class="text-muted">Vazio</em>
+                                                             {% endif %}
+                                                        {% else %}
+                                                            {{ valor }}
+                                                        {% endif %}
+                                                    {% else %}
+                                                        <em class="text-muted">Vazio</em>
+                                                    {% endif %}
+                                                </td>
+                                            {% endif %}
+                                        {% endfor %}
+                                        <td>{{ registro.criado_em.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button type="button" 
+                                                        class="btn btn-outline-info" 
+                                                        onclick="verDetalhes({{ registro.id }})"
+                                                        title="Ver Detalhes">
+                                                    <i class="fas fa-eye"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-outline-warning" 
+                                                        onclick="editarRegistro({{ registro.id }})"
+                                                        title="Editar">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button type="button" 
+                                                        class="btn btn-outline-danger" 
+                                                        onclick="excluirRegistro({{ registro.id }})"
+                                                        title="Excluir">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-database fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">Nenhum registro encontrado</h5>
+                            <p class="text-muted">Ainda não há registros salvos para este formulário.</p>
+                            <a href="{{ url_for('formularios.executar', id=formulario.id) }}" class="btn btn-primary">
+                                <i class="fas fa-plus"></i> Criar Primeiro Registro
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Detalhes -->
+<div class="modal fade" id="modalDetalhes" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Detalhes do Registro</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="detalhesContainer">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Carregando...</span>
+                        </div>
+                        <p class="mt-2">Carregando detalhes...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block styles %}
+<style>
+/* Estilos para os filtros da DataTable */
+#tabelaRegistros thead tr:eq(1) th {
+    padding: 8px 4px;
+}
+
+#tabelaRegistros thead tr:eq(1) th input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+#tabelaRegistros thead tr:eq(1) th input:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Ajuste para o cabeçalho fixo */
+.dataTables_wrapper .dataTables_scrollHead {
+    margin-bottom: 0;
+}
+
+/* Melhorar espaçamento da tabela */
+#tabelaRegistros {
+    margin-top: 0;
+}
+
+/* Estilo para placeholder dos filtros */
+#tabelaRegistros thead tr:eq(1) th input::placeholder {
+    color: #6c757d;
+    font-style: italic;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Variável global para a DataTable
+let table;
+
+// Inicializar DataTable
+$(document).ready(function() {
+    const camposCount = {{ formulario.campos|length }};
+    const dataColumnIndex = camposCount + 1;
+    
+    table = $('#tabelaRegistros').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/pt-BR.json'
+        },
+        order: [[dataColumnIndex, 'desc']], // Ordenar por data de criação (decrescente)
+        pageLength: 25,
+        orderCellsTop: true,
+        fixedHeader: true,
+        columnDefs: [
+            {
+                targets: [0, -1], // ID e Ações
+                orderable: false,
+                searchable: false
+            }
+        ]
+    });
+    
+    // Aplicar filtros individuais por coluna
+    $('#tabelaRegistros thead tr:eq(1) th').each(function(i) {
+        const column = table.column(i);
+        const input = $(this).find('input');
+        
+        if (input.length) {
+            input.on('keyup change', function() {
+                if (column.search() !== this.value) {
+                    column.search(this.value).draw();
+                }
+            });
+        }
+    });
+});
+
+function verDetalhes(registroId) {
+    const modal = new bootstrap.Modal(document.getElementById('modalDetalhes'));
+    const container = document.getElementById('detalhesContainer');
+    
+    // Mostrar loading
+    container.innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando...</span>
+            </div>
+            <p class="mt-2">Carregando detalhes...</p>
+        </div>
+    `;
+    
+    modal.show();
+    
+    // Buscar dados do registro
+    fetch(`/api/formularios/{{ formulario.id }}/registros`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const registro = data.registros.find(r => r.id === registroId);
+                if (registro) {
+                    renderizarDetalhes(registro);
+                } else {
+                    container.innerHTML = '<div class="alert alert-danger">Registro não encontrado</div>';
+                }
+            } else {
+                container.innerHTML = '<div class="alert alert-danger">Erro ao carregar dados</div>';
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            container.innerHTML = '<div class="alert alert-danger">Erro ao carregar dados</div>';
+        });
+}
+
+function renderizarDetalhes(registro) {
+    const container = document.getElementById('detalhesContainer');
+    
+    let html = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Informações do Registro</h6>
+                <table class="table table-sm">
+                    <tr>
+                        <td><strong>ID:</strong></td>
+                        <td>${registro.id}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Criado em:</strong></td>
+                        <td>${new Date(registro.criado_em).toLocaleString('pt-BR')}</td>
+                    </tr>
+                    ${registro.atualizado_em ? `
+                    <tr>
+                        <td><strong>Atualizado em:</strong></td>
+                        <td>${new Date(registro.atualizado_em).toLocaleString('pt-BR')}</td>
+                    </tr>
+                    ` : ''}
+                </table>
+            </div>
+        </div>
+        
+        <hr>
+        
+        <h6>Dados do Formulário</h6>
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Campo</th>
+                        <th>Valor</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    // Buscar campos do formulário para mostrar labels
+    fetch(`/api/formularios/{{ formulario.id }}/campos`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const campos = data.campos;
+                
+                Object.entries(registro.dados).forEach(([campo, valor]) => {
+                    const campoInfo = campos.find(c => c.nome_campo === campo);
+                    const label = campoInfo ? campoInfo.label : campo;
+                    
+                    let valorExibicao = valor;
+                    if (Array.isArray(valor)) {
+                        valorExibicao = valor.join(', ');
+                    } else if (typeof valor === 'object') {
+                        valorExibicao = JSON.stringify(valor);
+                    }
+                    
+                    html += `
+                        <tr>
+                            <td><strong>${label}</strong></td>
+                            <td>${valorExibicao || '<em class="text-muted">Vazio</em>'}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                        </tbody>
+                    </table>
+                </div>
+                `;
+                
+                container.innerHTML = html;
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao carregar campos:', error);
+            // Fallback: mostrar dados sem labels
+            Object.entries(registro.dados).forEach(([campo, valor]) => {
+                let valorExibicao = valor;
+                if (Array.isArray(valor)) {
+                    valorExibicao = valor.join(', ');
+                } else if (typeof valor === 'object') {
+                    valorExibicao = JSON.stringify(valor);
+                }
+                
+                html += `
+                    <tr>
+                        <td><strong>${campo}</strong></td>
+                        <td>${valorExibicao || '<em class="text-muted">Vazio</em>'}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                    </tbody>
+                </table>
+            </div>
+            `;
+            
+            container.innerHTML = html;
+        });
+}
+
+function editarRegistro(registroId) {
+    // Redirecionar para a página de edição
+    window.location.href = `/formularios/registros/${registroId}/editar`;
+}
+
+function limparFiltros() {
+    // Limpar todos os campos de filtro
+    $('#tabelaRegistros thead tr:eq(1) th input').val('');
+    
+    // Limpar filtros da DataTable
+    table.search('').columns().search('').draw();
+    
+    // Mostrar feedback
+    Swal.fire({
+        icon: 'info',
+        title: 'Filtros Limpos!',
+        text: 'Todos os filtros foram removidos.',
+        timer: 1500,
+        showConfirmButton: false
+    });
+}
+
+function excluirRegistro(registroId) {
+    if (confirm('Tem certeza que deseja excluir este registro? Esta ação não pode ser desfeita.')) {
+        fetch(`/formularios/registros/${registroId}/excluir`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Sucesso!',
+                    text: data.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro!',
+                    text: data.message
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: 'Ocorreu um erro ao excluir o registro.'
+            });
+        });
+    }
+}
+</script>
+
+<!-- DataTables CSS e JS -->
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.5.0/css/responsive.bootstrap5.min.css">
+<script type="text/javascript" src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/responsive/2.5.0/js/dataTables.responsive.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/responsive/2.5.0/js/responsive.bootstrap5.min.js"></script>
+{% endblock %} 

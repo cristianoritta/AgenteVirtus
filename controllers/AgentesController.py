@@ -542,8 +542,6 @@ Colunas: {', '.join(df.columns.tolist())}
             else:
                 equipes[i].formato_saida = 'Não definido'
         
-        print(equipes)
-        
         return render_template('agentes/equipes.html', equipes=equipes)
 
     @staticmethod

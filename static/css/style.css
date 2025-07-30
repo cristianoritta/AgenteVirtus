@@ -3,3 +3,9 @@
     background-repeat: no-repeat;
     background-position: center;
 }
+
+.sidebar-divider {
+    border-top: 2px solid #92a9f0 !important;
+    margin-left: -0px !important;
+    margin-right: -0px !important;
+}
