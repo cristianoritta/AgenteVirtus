@@ -1,0 +1,330 @@
+/* Estilos específicos para o sistema de notas */
+
+/* Sidebar de notas */
+.notas-lista {
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 #f1f1f1;
+}
+
+.notas-lista::-webkit-scrollbar {
+    width: 6px;
+}
+
+.notas-lista::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.notas-lista::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.notas-lista::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Cards de notas na lista */
+.list-group-item {
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    transition: all 0.2s ease;
+}
+
+.list-group-item:hover {
+    background-color: #f8f9fa;
+    transform: translateX(2px);
+}
+
+.list-group-item:first-child {
+    border-top: 1px solid #dee2e6;
+}
+
+/* Editor de notas */
+#editor-nota {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Campos do editor */
+#input-titulo {
+    border: none;
+    border-bottom: 2px solid #e9ecef;
+    border-radius: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    padding: 0.5rem 0;
+    transition: border-color 0.3s ease;
+}
+
+#input-titulo:focus {
+    border-color: #007bff;
+    box-shadow: none;
+    outline: none;
+}
+
+#textarea-conteudo {
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    resize: vertical;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+#textarea-conteudo:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Tags */
+.tag-badge {
+    display: inline-block;
+    background-color: #e9ecef;
+    color: #495057;
+    padding: 0.25rem 0.5rem;
+    margin: 0.125rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.tag-badge:hover {
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+}
+
+/* Vínculos */
+.vinculo-item {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.vinculo-item:hover {
+    background-color: #e9ecef;
+    border-color: #007bff;
+}
+
+.vinculo-tipo {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+}
+
+/* Categorias */
+.categoria-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: white;
+    margin-right: 0.25rem;
+}
+
+/* Estados das notas */
+.nota-favorita {
+    border-left: 4px solid #ffc107;
+}
+
+.nota-arquivada {
+    opacity: 0.7;
+    background-color: #f8f9fa;
+}
+
+.nota-favorita.nota-arquivada {
+    border-left: 4px solid #6c757d;
+}
+
+/* Botões de ação */
+.btn-nota {
+    transition: all 0.2s ease;
+}
+
+.btn-nota:hover {
+    transform: translateY(-1px);
+}
+
+/* Modal de nova nota */
+.modal-content {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    border-bottom: 1px solid #e9ecef;
+    background-color: #f8f9fa;
+    border-radius: 12px 12px 0 0;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+    .col-md-4.col-lg-3 {
+        margin-bottom: 1rem;
+    }
+    
+    #editor-nota {
+        padding: 1rem;
+    }
+    
+    .btn-group {
+        flex-direction: column;
+    }
+    
+    .btn-group .btn {
+        margin-bottom: 0.25rem;
+    }
+}
+
+/* Animações */
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+
+.slide-in {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(-20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Estados de carregamento */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #f3f3f3;
+    border-top: 2px solid #007bff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Melhorias na tipografia */
+.nota-titulo {
+    font-weight: 600;
+    color: #212529;
+    margin-bottom: 0.5rem;
+}
+
+.nota-resumo {
+    color: #6c757d;
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.nota-meta {
+    font-size: 0.8rem;
+    color: #adb5bd;
+}
+
+/* Estilos para o modo escuro (se implementado) */
+[data-bs-theme="dark"] .list-group-item {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] .list-group-item:hover {
+    background-color: #4a5568;
+}
+
+[data-bs-theme="dark"] #textarea-conteudo {
+    background-color: #2d3748;
+    border-color: #4a5568;
+    color: #e2e8f0;
+}
+
+[data-bs-theme="dark"] #input-titulo {
+    background-color: transparent;
+    color: #e2e8f0;
+    border-color: #4a5568;
+}
+
+/* Melhorias na acessibilidade */
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Estilos para notificações */
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    animation: slideInRight 0.3s ease-out;
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* Estilos para opções de cor */
+.color-option {
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.color-option:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.color-option.selected {
+    border: 2px solid #000 !important;
+    box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Estilos para selects com cores */
+.form-select option[style*="color"] {
+    padding: 8px;
+    font-weight: 500;
+}
+
+/* Melhorias no modal de categoria */
+.modal-body .form-control:focus,
+.modal-body .form-select:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Botão de loading */
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.fa-spinner {
+    animation: spin 1s linear infinite;
+} 

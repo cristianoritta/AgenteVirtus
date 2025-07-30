@@ -1,30 +1,328 @@
 {% extends 'layout/base.html' %}
 
 {% block main %}
+
 <div class="card">
     <div class="card-header">
-        Minha Conta
+        <ul class="nav nav-tabs card-header-tabs" id="minhacontaTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="conta-tab" data-bs-toggle="tab" data-bs-target="#conta"
+                    type="button" role="tab">Minha Conta</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="api-tab" data-bs-toggle="tab" data-bs-target="#api" type="button"
+                    role="tab">APIs
+                    de IA</button>
+            </li>
+        </ul>
     </div>
     <div class="card-body">
-        <form action="/minhaconta" method="post" id="form-minhaconta">
-            <div class="row">
-                <div class="form-group col-6">
-                    <label for="nome">Nome</label>
-                    <input type="text" class="form-control" id="nome" name="nome" value="{{ usuario.nome }}">
+        <div class="tab-content">
+            <div class="tab-pane fade show active" id="conta" role="tabpanel">
+                <div class="card-body">
+                    <form action="/minhaconta" method="post" id="form-minhaconta">
+                        <div class="row">
+                            <div class="form-group col-lg-4">
+                                <label for="nome">Nome</label>
+                                <input type="text" class="form-control" id="nome" name="nome"
+                                    value="{{ usuario.nome }}">
+                            </div>
+                            <div class="form-group col-lg-4">
+                                <label for="email">Email</label>
+                                <input type="email" class="form-control" id="email" name="email"
+                                    value="{{ usuario.email }}">
+                            </div>
+                            <div class="form-group col-lg-4">
+                                <label for="telefone">Telefone</label>
+                                <input type="text" class="form-control" id="telefone" name="telefone"
+                                    value="{{ usuario.telefone }}">
+                            </div>
+                        </div>
+                    </form>
                 </div>
-                <div class="form-group col-6">
-                    <label for="email">Email</label>
-                    <input type="email" class="form-control" id="email" name="email" value="{{ usuario.email }}">
-                </div>
-                <div class="form-group col-6">
-                    <label for="telefone">Telefone</label>
-                    <input type="text" class="form-control" id="telefone" name="telefone" value="{{ usuario.telefone }}">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-success" form="form-minhaconta">Salvar</button>
                 </div>
             </div>
-        </form>
-    </div>
-    <div class="card-footer">
-        <button type="submit" class="btn btn-primary" form="form-minhaconta">Salvar</button>
+            <div class="tab-pane fade" id="api" role="tabpanel">
+                <div class="card-body">
+                    <form action="/minhaconta/apiia/adicionar" method="post" class="mb-4" id="form-apiia">
+                        <input type="hidden" id="api_id_edit" name="api_id" value="">
+                        <div class="row">
+                            <div class="form-group col-lg-3">
+                                <label for="nome_api">Nome</label>
+                                <input type="text" class="form-control" id="nome_api" name="nome" required>
+                            </div>
+                            <div class="form-group col-lg-3">
+                                <label for="api_key_api">API Key</label>
+                                <input type="text" class="form-control" id="api_key_api" name="api_key">
+                            </div>
+                            <div class="form-group col-lg-2">
+                                <label for="modelo_chat_api">Modelo Chat</label>
+                                <input type="text" class="form-control" id="modelo_chat_api" name="modelo_chat">
+                            </div>
+                            <div class="form-group col-lg-2">
+                                <label for="modelo_voz_api">Modelo Voz</label>
+                                <input type="text" class="form-control" id="modelo_voz_api" name="modelo_voz">
+                            </div>
+                            <div class="form-group col-lg-2">
+                                <label for="modelo_visao_api">Modelo Visão</label>
+                                <input type="text" class="form-control" id="modelo_visao_api" name="modelo_visao">
+                            </div>
+                            <div class="form-group col-lg-4 mt-2">
+                                <label for="endpoint_api">Endpoint</label>
+                                <input type="text" class="form-control" id="endpoint_api" name="endpoint">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-lg-2">
+                                <button type="submit" class="btn btn-success w-100" id="btn-adicionar-api">Adicionar API</button>
+                            </div>
+                            <div class="col-lg-2">
+                                <button type="button" class="btn btn-secondary w-100" id="btn-cancelar-edicao" style="display: none;">Cancelar</button>
+                            </div>
+                        </div>
+                    </form>
+                    <hr>
+                    <h5>APIs Cadastradas</h5>
+                    <table class="table table-bordered table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nome</th>
+                                <th>Ativo</th>
+                                <th>API Key</th>
+                                <th>Modelo Chat</th>
+                                <th>Modelo Voz</th>
+                                <th>Modelo Visão</th>
+                                <th>Endpoint</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for api in apis_ia %}
+                            <tr>
+                                <td>{{ api.nome }}</td>
+                                <td>
+                                    {% if api.ativo %}
+                                    <a href="/minhaconta/apiia/{{ api.id}}/desativar" class="btn btn-success api"
+                                        title="Clique para desativar" hx-get="/minhaconta/apiia/{{ api.id}}/desativar"
+                                        hx-target="closest tbody" hx-swap="innerHTML">Ativo</a>
+                                    {% else %}
+                                    <a href="/minhaconta/apiia/{{ api.id}}/ativar" class="btn btn-secondary api"
+                                        title="Clique para ativar" hx-get="/minhaconta/apiia/{{ api.id}}/ativar"
+                                        hx-target="closest tbody" hx-swap="innerHTML">Inativo</a>
+                                    {% endif %}
+                                </td>
+                                <td>{{ api.api_key[:10] }}...</td>
+                                <td>{{ api.modelo_chat }}</td>
+                                <td>{{ api.modelo_voz }}</td>
+                                <td>{{ api.modelo_visao }}</td>
+                                <td>{{ api.endpoint }}</td>
+                                <td nowrap>
+                                    <button class="btn btn-sm btn-info btn-testar-api me-1" data-api-id="{{ api.id }}"
+                                        data-api-nome="{{ api.nome }}" type="button" title="Testar API">
+                                        <i class="fas fa-play"></i> Testar
+                                    </button>
+                                    <button class="btn btn-sm btn-warning btn-editar-api me-1" data-api-id="{{ api.id }}"
+                                        data-api-nome="{{ api.nome }}" data-api-key="{{ api.api_key }}"
+                                        data-modelo-chat="{{ api.modelo_chat }}" data-modelo-voz="{{ api.modelo_voz }}"
+                                        data-modelo-visao="{{ api.modelo_visao }}" data-endpoint="{{ api.endpoint }}"
+                                        type="button" title="Editar API">
+                                        <i class="fas fa-edit"></i> Editar
+                                    </button>
+                                    <button class="btn btn-sm btn-danger btn-excluir-api" data-api-id="{{ api.id }}"
+                                        hx-get="/minhaconta/apiia/{{ api.id }}/excluir" hx-target="closest tr"
+                                        hx-swap="outerHTML remove" type="button">
+                                        Excluir
+                                    </button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">Nenhuma API cadastrada.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://unpkg.com/htmx.org@1.9.2"></script>
+<script>
+    document.addEventListener('click', function (e) {
+        if (e.target.classList.contains('btn-excluir-api')) {
+            const btn = e.target;
+            const apiId = btn.getAttribute('data-api-id');
+            Swal.fire({
+                title: 'Tem certeza?',
+                text: 'Esta ação não poderá ser desfeita!',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sim, excluir!',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    btn.setAttribute('hx-get', `/minhaconta/apiia/${apiId}/excluir`);
+                    btn.setAttribute('hx-target', 'closest tr');
+                    btn.setAttribute('hx-swap', 'outerHTML remove');
+                    htmx.trigger(btn, 'click');
+                }
+            });
+        }
+
+        if (e.target.classList.contains('btn-editar-api') || e.target.closest('.btn-editar-api')) {
+            const btn = e.target.classList.contains('btn-editar-api') ? e.target : e.target.closest('.btn-editar-api');
+            const apiId = btn.getAttribute('data-api-id');
+            const apiNome = btn.getAttribute('data-api-nome');
+            const apiKey = btn.getAttribute('data-api-key');
+            const modeloChat = btn.getAttribute('data-modelo-chat');
+            const modeloVoz = btn.getAttribute('data-modelo-voz');
+            const modeloVisao = btn.getAttribute('data-modelo-visao');
+            const endpoint = btn.getAttribute('data-endpoint');
+
+            // Preencher o formulário com os dados da API
+            document.getElementById('api_id_edit').value = apiId;
+            document.getElementById('nome_api').value = apiNome;
+            document.getElementById('api_key_api').value = apiKey;
+            document.getElementById('modelo_chat_api').value = modeloChat;
+            document.getElementById('modelo_voz_api').value = modeloVoz;
+            document.getElementById('modelo_visao_api').value = modeloVisao;
+            document.getElementById('endpoint_api').value = endpoint;
+
+            // Alterar o formulário para modo de edição
+            const form = document.getElementById('form-apiia');
+            form.action = `/minhaconta/apiia/${apiId}/editar`;
+            
+            const btnAdicionar = document.getElementById('btn-adicionar-api');
+            btnAdicionar.textContent = 'Atualizar API';
+            btnAdicionar.className = 'btn btn-warning w-100';
+            
+            const btnCancelar = document.getElementById('btn-cancelar-edicao');
+            btnCancelar.style.display = 'block';
+
+            // Rolar para o formulário
+            document.getElementById('form-apiia').scrollIntoView({ behavior: 'smooth' });
+
+            // Mostrar mensagem
+            Swal.fire({
+                title: 'Modo de Edição',
+                text: `Editando API: ${apiNome}`,
+                icon: 'info',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+
+        if (e.target.classList.contains('btn-cancelar-edicao') || e.target.closest('.btn-cancelar-edicao')) {
+            // Limpar formulário e voltar ao modo de adição
+            document.getElementById('api_id_edit').value = '';
+            document.getElementById('nome_api').value = '';
+            document.getElementById('api_key_api').value = '';
+            document.getElementById('modelo_chat_api').value = '';
+            document.getElementById('modelo_voz_api').value = '';
+            document.getElementById('modelo_visao_api').value = '';
+            document.getElementById('endpoint_api').value = '';
+
+            // Alterar o formulário de volta para modo de adição
+            const form = document.getElementById('form-apiia');
+            form.action = '/minhaconta/apiia/adicionar';
+            
+            const btnAdicionar = document.getElementById('btn-adicionar-api');
+            btnAdicionar.textContent = 'Adicionar API';
+            btnAdicionar.className = 'btn btn-success w-100';
+            
+            const btnCancelar = document.getElementById('btn-cancelar-edicao');
+            btnCancelar.style.display = 'none';
+
+            Swal.fire({
+                title: 'Edição Cancelada',
+                text: 'Formulário limpo e pronto para adicionar nova API',
+                icon: 'info',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        }
+
+        if (e.target.classList.contains('btn-testar-api') || e.target.closest('.btn-testar-api')) {
+            const btn = e.target.classList.contains('btn-testar-api') ? e.target : e.target.closest('.btn-testar-api');
+            const apiId = btn.getAttribute('data-api-id');
+            const apiNome = btn.getAttribute('data-api-nome');
+
+            // Desabilitar o botão e mostrar loading
+            btn.disabled = true;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testando...';
+
+            // Fazer requisição para testar a API específica
+            fetch(`/api/testar-api/${apiId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Swal.fire({
+                            title: '✅ API Funcionando!',
+                            html: `
+                                <div class="text-left">
+                                    <p><strong>API:</strong> ${data.api_nome}</p>
+                                    <p><strong>Endpoint:</strong> ${data.endpoint}</p>
+                                    <p><strong>Modelo:</strong> ${data.modelo}</p>
+                                    <hr>
+                                    <p><strong>Resposta da IA:</strong></p>
+                                    <p class="text-muted">${data.resposta}</p>
+                                </div>
+                            `,
+                            icon: 'success',
+                            confirmButtonText: 'OK'
+                        });
+                    } else {
+                        Swal.fire({
+                            title: '❌ Erro no Teste',
+                            html: `
+                                <div class="text-left">
+                                    <p><strong>Mensagem:</strong> ${data.message}</p>
+                                    ${data.endpoint ? `<p><strong>Endpoint:</strong> ${data.endpoint}</p>` : ''}
+                                    ${data.modelo ? `<p><strong>Modelo:</strong> ${data.modelo}</p>` : ''}
+                                    ${data.api_nome ? `<p><strong>API:</strong> ${data.api_nome}</p>` : ''}
+                                </div>
+                            `,
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                })
+                .catch(error => {
+                    Swal.fire({
+                        title: '❌ Erro na Requisição',
+                        text: `Erro ao testar a API: ${error.message}`,
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                })
+                .finally(() => {
+                    // Reabilitar o botão
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                });
+        }
+    });
+
+    // Log para requisições htmx
+    document.body.addEventListener('htmx:beforeRequest', function (evt) {
+        console.log('[HTMX] htmx:beforeRequest', evt);
+    });
+    document.body.addEventListener('htmx:afterRequest', function (evt) {
+        console.log('[HTMX] htmx:afterRequest', evt);
+    });
+    document.body.addEventListener('htmx:responseError', function (evt) {
+        console.error('[HTMX] htmx:responseError', evt);
+    });
+</script>
 {% endblock %}

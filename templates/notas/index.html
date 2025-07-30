@@ -1,0 +1,872 @@
+{% extends 'layout/base.html' %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <!-- Sidebar com lista de notas -->
+        <div class="col-md-4 col-lg-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-sticky-note me-2"></i>Minhas Notas</h5>
+                    <button class="btn btn-sm btn-light" onclick="abrirModalNovaNota()">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <!-- Filtros -->
+                    <div class="p-3 border-bottom">
+                        <div class="input-group mb-2">
+                            <input type="text" class="form-control form-control-sm" id="busca-notas"
+                                placeholder="Buscar notas...">
+                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="buscarNotas()" title="Buscar notas">
+                                <i class="fas fa-search"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="filtrarNotas('todas')" title="Todas as notas">
+                                Todas
+                            </button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="filtrarNotas('arquivadas')" title="Notas arquivadas">
+                                <i class="fas fa-archive"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning" onclick="filtrarNotas('favoritas')" title="Notas favoritas">
+                                <i class="fas fa-star"></i>
+                            </button>
+                        </div>
+                        <div class="d-flex gap-1 mb-2">
+                            <select class="form-select form-select-sm" id="filtro-categoria"
+                                onchange="filtrarPorCategoria()">
+                                <option value="">Todas as categorias</option>
+                            </select>
+                            <button class="btn btn-sm btn-outline-primary" onclick="abrirModalNovaCategoria()"
+                                title="Nova categoria">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                        <div class="text-center">
+                            <small class="text-muted" id="estatisticas-categorias">
+                                <i class="fas fa-info-circle"></i> Clique em uma categoria para filtrar
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Lista de notas -->
+                    <div class="notas-lista" style="max-height: 600px; overflow-y: auto;">
+                        <div id="lista-notas" class="list-group list-group-flush">
+                            <!-- Notas serão carregadas aqui -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Área principal - Editor de notas -->
+        <div class="col-md-8 col-lg-9">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <div>
+                        <input type="text" class="form-control bg-light" id="input-titulo"
+                            placeholder="Título da nota...">
+                        <small class="text-muted" id="nota-meta"></small>
+                    </div>
+                    <div class="btn-group" id="acoes-nota" style="display: none;">
+                        <button class="btn btn-sm btn-outline-primary" onclick="salvarNota()">
+                            <i class="fas fa-save"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning" onclick="toggleFavorita()" id="btn-favorita">
+                            <i class="fas fa-star"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleArquivada()" id="btn-arquivada">
+                            <i class="fas fa-archive"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deletarNota()">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="editor-nota" style="display: none;">
+                        <!-- Campos do editor -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <div class="input-group">
+                                    <select class="form-select" id="select-categoria">
+                                        <option value="">Sem categoria</option>
+                                    </select>
+                                    <button class="btn btn-outline-primary" type="button"
+                                        onclick="abrirModalNovaCategoria()" title="Nova categoria">
+                                        <i class="fas fa-plus"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <textarea class="form-control" id="textarea-conteudo" rows="15"
+                                placeholder="Conteúdo da nota..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Resumo:</label>
+                            <textarea class="form-control" id="textarea-resumo" rows="3"
+                                placeholder="Resumo da nota (opcional)"></textarea>
+                            <button class="btn btn-sm btn-outline-secondary mt-1" onclick="gerarResumo()">
+                                <i class="fas fa-magic"></i> Gerar resumo automático
+                            </button>
+                        </div>
+
+                        <!-- Seção de vínculos -->
+                        <div class="mb-3">
+                            <label class="form-label">Vínculos com outras notas:</label>
+                            <div id="vinculos-container">
+                                <div class="input-group mb-2">
+                                    <select class="form-select" id="select-vinculo">
+                                        <option value="">Selecione uma nota...</option>
+                                    </select>
+                                    <select class="form-select" id="tipo-vinculo">
+                                        <option value="relacionada">Relacionada</option>
+                                        <option value="referencia">Referência</option>
+                                        <option value="complementa">Complementa</option>
+                                        <option value="contradiz">Contradiz</option>
+                                    </select>
+                                    <button class="btn btn-outline-primary" type="button" onclick="adicionarVinculo()">
+                                        <i class="fas fa-link"></i>
+                                    </button>
+                                </div>
+                                <div id="lista-vinculos">
+                                    <!-- Vínculos serão listados aqui -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="nota-vazia" class="text-center py-5">
+                        <i class="fas fa-sticky-note fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">Nenhuma nota selecionada</h4>
+                        <p class="text-muted">Selecione uma nota da lista ou crie uma nova para começar.</p>
+                        <button class="btn btn-primary" onclick="abrirModalNovaNota()">
+                            <i class="fas fa-plus me-2"></i>Criar Nova Nota
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Incluir o partial do modal -->
+{% include 'notas/_partials/modal_nova_nota.html' %}
+
+<!-- Modal para nova categoria -->
+<div class="modal fade" id="modalNovaCategoria" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nova Categoria</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Nome *</label>
+                    <input type="text" class="form-control" id="modal-cat-nome" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Descrição</label>
+                    <textarea class="form-control" id="modal-cat-descricao" rows="3"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Cor</label>
+                    <div class="d-flex gap-2 mb-2">
+                        <div class="color-option" data-color="#007bff"
+                            style="background-color: #007bff; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid #dee2e6;"
+                            onclick="selecionarCor('#007bff')"></div>
+                        <div class="color-option" data-color="#28a745"
+                            style="background-color: #28a745; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid #dee2e6;"
+                            onclick="selecionarCor('#28a745')"></div>
+                        <div class="color-option" data-color="#dc3545"
+                            style="background-color: #dc3545; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid #dee2e6;"
+                            onclick="selecionarCor('#dc3545')"></div>
+                        <div class="color-option" data-color="#ffc107"
+                            style="background-color: #ffc107; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid #dee2e6;"
+                            onclick="selecionarCor('#ffc107')"></div>
+                        <div class="color-option" data-color="#6f42c1"
+                            style="background-color: #6f42c1; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid #dee2e6;"
+                            onclick="selecionarCor('#6f42c1')"></div>
+                        <div class="color-option" data-color="#fd7e14"
+                            style="background-color: #fd7e14; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid #dee2e6;"
+                            onclick="selecionarCor('#fd7e14')"></div>
+                    </div>
+                    <input type="color" class="form-control form-control-color" id="modal-cat-cor" value="#007bff">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="criarCategoria()">Criar Categoria</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let notaAtual = null;
+    let categorias = [];
+    let todasNotas = [];
+    let vinculosTemp = [];
+
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', function () {
+        carregarNotas();
+        carregarCategorias();
+
+        // Event listeners
+        document.getElementById('busca-notas').addEventListener('keyup', function (e) {
+            if (e.key === 'Enter') {
+                buscarNotas();
+            }
+        });
+
+        // Auto-save
+        let timeoutId;
+        document.getElementById('textarea-conteudo').addEventListener('input', function () {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(() => {
+                if (notaAtual) {
+                    salvarNota(true); // Auto-save silencioso
+                }
+            }, 2000);
+        });
+
+        // Carregar nota específica se fornecida via URL
+        setTimeout(() => {
+            const pathSegments = window.location.pathname.split('/');
+            if (pathSegments.length === 3 && pathSegments[1] === 'notas' && !isNaN(pathSegments[2])) {
+                const notaId = parseInt(pathSegments[2]);
+                carregarNota(notaId);
+            }
+        }, 1000); // Aguardar carregamento das notas
+
+        // Suporte para navegação com botão voltar
+        window.addEventListener('popstate', function (event) {
+            const pathSegments = window.location.pathname.split('/');
+            if (pathSegments.length === 3 && pathSegments[1] === 'notas' && !isNaN(pathSegments[2])) {
+                const notaId = parseInt(pathSegments[2]);
+                carregarNota(notaId);
+            } else {
+                // Voltar para a lista geral
+                notaAtual = null;
+                mostrarListaGeral();
+            }
+        });
+    });
+
+    // Funções de carregamento
+    function carregarNotas() {
+        fetch('/api/notas')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    todasNotas = data.notas;
+                    renderizarListaNotas(data.notas);
+                }
+            })
+            .catch(error => console.error('Erro ao carregar notas:', error));
+    }
+
+    function carregarCategorias() {
+        fetch('/api/notas/categorias')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    categorias = data.categorias;
+                    renderizarCategorias();
+                }
+            })
+            .catch(error => console.error('Erro ao carregar categorias:', error));
+    }
+
+    function renderizarListaNotas(notas) {
+        const container = document.getElementById('lista-notas');
+        container.innerHTML = '';
+
+        if (notas.length === 0) {
+            container.innerHTML = '<div class="p-3 text-center text-muted">Nenhuma nota encontrada</div>';
+            return;
+        }
+
+        notas.forEach(nota => {
+            const item = document.createElement('div');
+            item.className = 'list-group-item list-group-item-action';
+
+            // Destacar a nota atual se estiver carregada
+            if (notaAtual && notaAtual.id === nota.id) {
+                item.classList.add('active');
+            }
+
+            item.onclick = () => carregarNota(nota.id);
+
+            const categoria = categorias.find(cat => cat.id === nota.categoria_id);
+            const categoriaHtml = categoria ?
+                `<span class="badge" style="background-color: ${categoria.cor}">${categoria.nome}</span>` : '';
+
+            const favoritaIcon = nota.favorita ? '<i class="fas fa-star text-warning"></i> ' : '';
+            const arquivadaIcon = nota.arquivada ? '<i class="fas fa-archive text-muted"></i> ' : '';
+
+            item.innerHTML = `
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">${favoritaIcon}${arquivadaIcon}${nota.titulo}</h6>
+                <small class="text-muted">${formatarData(nota.atualizada_em)}</small>
+            </div>
+            <p class="mb-1 text-muted">${nota.resumo || nota.conteudo.substring(0, 100)}...</p>
+            <div class="d-flex justify-content-between align-items-center">
+                ${categoriaHtml}
+                <small class="text-muted">
+                    <i class="fas fa-link"></i> ${nota.vinculos_count}
+                </small>
+            </div>
+        `;
+
+            container.appendChild(item);
+        });
+    }
+
+    function renderizarCategorias() {
+        const selectCategoria = document.getElementById('select-categoria');
+        const selectVinculo = document.getElementById('select-vinculo');
+        const filtroCategoria = document.getElementById('filtro-categoria');
+        const modalCategoria = document.getElementById('modal-categoria');
+
+        const options = ['<option value="">Sem categoria</option>'];
+        const optionsComCor = ['<option value="">Todas as categorias</option>'];
+
+        categorias.forEach(cat => {
+            options.push(`<option value="${cat.id}">${cat.nome}</option>`);
+            optionsComCor.push(`<option value="${cat.id}" style="color: ${cat.cor};">${cat.nome} (${cat.notas_count})</option>`);
+        });
+
+        selectCategoria.innerHTML = options.join('');
+        selectVinculo.innerHTML = options.join('');
+        filtroCategoria.innerHTML = optionsComCor.join('');
+        modalCategoria.innerHTML = options.join('');
+
+        // Atualizar estatísticas
+        atualizarEstatisticasCategorias();
+    }
+
+    function atualizarEstatisticasCategorias() {
+        const statsElement = document.getElementById('estatisticas-categorias');
+        const totalCategorias = categorias.length;
+        const totalNotas = categorias.reduce((total, cat) => total + cat.notas_count, 0);
+
+        if (totalCategorias === 0) {
+            statsElement.innerHTML = '<i class="fas fa-info-circle"></i> Nenhuma categoria criada';
+        } else {
+            statsElement.innerHTML = `<i class="fas fa-tags"></i> ${totalCategorias} categorias • ${totalNotas} notas`;
+        }
+    }
+
+    // Funções de manipulação de notas
+    function carregarNota(notaId) {
+        fetch(`/api/nota?id=${notaId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    notaAtual = data.nota;
+                    preencherEditor(data.nota);
+                    mostrarEditor();
+
+                    // Atualizar URL para refletir a nota atual
+                    const novaUrl = `/notas/${notaId}`;
+                    if (window.location.pathname !== novaUrl) {
+                        window.history.pushState({ notaId: notaId }, '', novaUrl);
+                    }
+                }
+            })
+            .catch(error => console.error('Erro ao carregar nota:', error));
+    }
+
+    function preencherEditor(nota) {
+        document.getElementById('input-titulo').value = nota.titulo;
+        document.getElementById('textarea-conteudo').value = nota.conteudo;
+        document.getElementById('textarea-resumo').value = nota.resumo || '';
+        document.getElementById('select-categoria').value = nota.categoria_id || '';
+
+        // Atualizar botões
+        document.getElementById('btn-favorita').innerHTML =
+            nota.favorita ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+        document.getElementById('btn-arquivada').innerHTML =
+            nota.arquivada ? '<i class="fas fa-archive"></i>' : '<i class="fas fa-archive"></i>';
+
+        // Atualizar título e meta
+        document.getElementById('nota-meta').textContent =
+            `Atualizada em ${formatarData(nota.atualizada_em)} • ${nota.vinculos_count} vínculos`;
+
+        // Vínculos
+        vinculosTemp = [];
+        if (nota.vinculos_origem) {
+            nota.vinculos_origem.forEach(v => {
+                vinculosTemp.push({
+                    nota_destino_id: v.nota_destino_id,
+                    nota_destino_titulo: v.nota_destino_titulo,
+                    tipo_vinculo: v.tipo_vinculo,
+                    descricao: v.descricao,
+                    id: v.id
+                });
+            });
+        }
+        renderizarVinculosTemp();
+        renderizarSelectVinculo();
+    }
+
+    function mostrarEditor() {
+        document.getElementById('editor-nota').style.display = 'block';
+        document.getElementById('nota-vazia').style.display = 'none';
+        document.getElementById('acoes-nota').style.display = 'block';
+    }
+
+    function mostrarListaGeral() {
+        document.getElementById('editor-nota').style.display = 'none';
+        document.getElementById('nota-vazia').style.display = 'block';
+        document.getElementById('acoes-nota').style.display = 'none';
+
+        // Limpar seleção na lista
+        document.querySelectorAll('#lista-notas .list-group-item').forEach(item => {
+            item.classList.remove('active');
+        });
+    }
+
+    function salvarNota(silencioso = false) {
+        if (!notaAtual) return;
+
+        const dados = {
+            id: notaAtual.id,
+            titulo: document.getElementById('input-titulo').value,
+            conteudo: document.getElementById('textarea-conteudo').value,
+            resumo: document.getElementById('textarea-resumo').value,
+            categoria_id: document.getElementById('select-categoria').value || null,
+            favorita: notaAtual.favorita,
+            arquivada: notaAtual.arquivada,
+            vinculos: vinculosTemp
+        };
+
+        fetch('/api/nota/atualizar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dados)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    notaAtual = data.nota;
+                    if (!silencioso) {
+                        mostrarMensagem('Nota salva com sucesso!', 'success');
+                    }
+                    carregarNotas(); // Recarregar lista
+                } else {
+                    if (!silencioso) {
+                        mostrarMensagem('Erro ao salvar nota: ' + data.error, 'error');
+                    }
+                }
+            })
+            .catch(error => {
+                if (!silencioso) {
+                    console.error('Erro ao salvar nota:', error);
+                    mostrarMensagem('Erro ao salvar nota', 'error');
+                }
+            });
+    }
+
+    function deletarNota() {
+        if (!notaAtual) return;
+
+        if (confirm('Tem certeza que deseja deletar esta nota?')) {
+            fetch('/api/nota/deletar', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ id: notaAtual.id })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        mostrarMensagem('Nota deletada com sucesso!', 'success');
+                        notaAtual = null;
+                        mostrarNotaVazia();
+                        carregarNotas();
+                    } else {
+                        mostrarMensagem('Erro ao deletar nota: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao deletar nota:', error);
+                    mostrarMensagem('Erro ao deletar nota', 'error');
+                });
+        }
+    }
+
+    function toggleFavorita() {
+        if (!notaAtual) return;
+
+        notaAtual.favorita = !notaAtual.favorita;
+        salvarNota(true);
+    }
+
+    function toggleArquivada() {
+        if (!notaAtual) return;
+
+        notaAtual.arquivada = !notaAtual.arquivada;
+        salvarNota(true);
+    }
+
+    // Funções de filtro e busca
+    function filtrarNotas(tipo) {
+        let url = '/api/notas?';
+
+        switch (tipo) {
+            case 'favoritas':
+                url += 'favoritas=true';
+                break;
+            case 'arquivadas':
+                url += 'arquivadas=true';
+                break;
+            default:
+                url = '/api/notas';
+        }
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderizarListaNotas(data.notas);
+                }
+            })
+            .catch(error => console.error('Erro ao filtrar notas:', error));
+    }
+
+    function filtrarPorCategoria() {
+        const categoriaId = document.getElementById('filtro-categoria').value;
+        let url = '/api/notas';
+
+        if (categoriaId) {
+            url += `?categoria_id=${categoriaId}`;
+        }
+
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderizarListaNotas(data.notas);
+                }
+            })
+            .catch(error => console.error('Erro ao filtrar por categoria:', error));
+    }
+
+    function buscarNotas() {
+        const termo = document.getElementById('busca-notas').value;
+
+        if (!termo) {
+            carregarNotas();
+            return;
+        }
+
+        fetch(`/api/notas/buscar?q=${encodeURIComponent(termo)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderizarListaNotas(data.notas);
+                }
+            })
+            .catch(error => console.error('Erro ao buscar notas:', error));
+    }
+
+    // Funções de modal
+    function abrirModalNovaNota() {
+        document.getElementById('modal-titulo').value = '';
+        document.getElementById('modal-conteudo').value = '';
+        document.getElementById('modal-categoria').value = '';
+        document.getElementById('modal-tags').value = '';
+
+        // Carregar categorias no select
+        carregarCategoriasModal();
+
+        const modal = new bootstrap.Modal(document.getElementById('modalNovaNota'));
+        modal.show();
+    }
+
+    function carregarCategoriasModal() {
+        const selectCategoria = document.getElementById('modal-categoria');
+        selectCategoria.innerHTML = '<option value="">Sem categoria</option>';
+        
+        categorias.forEach(cat => {
+            selectCategoria.innerHTML += `<option value="${cat.id}">${cat.nome}</option>`;
+        });
+    }
+
+    function criarNota() {
+        const titulo = document.getElementById('modal-titulo').value;
+        const conteudo = document.getElementById('modal-conteudo').value;
+        const categoria = document.getElementById('modal-categoria').value;
+        const tags = document.getElementById('modal-tags').value;
+
+        if (!titulo || !conteudo) {
+            mostrarMensagem('Título e conteúdo são obrigatórios', 'error');
+            return;
+        }
+
+        const dados = {
+            titulo: titulo,
+            conteudo: conteudo,
+            categoria_id: categoria || null,
+            tags: tags
+        };
+
+        fetch('/api/nota/criar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dados)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarMensagem('Nota criada com sucesso!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('modalNovaNota')).hide();
+                    carregarNotas();
+                    carregarNota(data.nota.id);
+
+                    // Atualizar URL para a nova nota
+                    window.history.pushState({ notaId: data.nota.id }, '', `/notas/${data.nota.id}`);
+                } else {
+                    mostrarMensagem('Erro ao criar nota: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao criar nota:', error);
+                mostrarMensagem('Erro ao criar nota', 'error');
+            });
+    }
+
+    function abrirModalNovaCategoria() {
+        document.getElementById('modal-cat-nome').value = '';
+        document.getElementById('modal-cat-descricao').value = '';
+        document.getElementById('modal-cat-cor').value = '#007bff';
+
+        // Resetar seleção de cores
+        document.querySelectorAll('.color-option').forEach(option => {
+            option.style.border = '2px solid #dee2e6';
+        });
+        document.querySelector('.color-option[data-color="#007bff"]').style.border = '2px solid #007bff';
+
+        const modal = new bootstrap.Modal(document.getElementById('modalNovaCategoria'));
+        modal.show();
+    }
+
+    function selecionarCor(cor) {
+        document.getElementById('modal-cat-cor').value = cor;
+
+        // Atualizar visual das opções de cor
+        document.querySelectorAll('.color-option').forEach(option => {
+            option.style.border = '2px solid #dee2e6';
+        });
+        document.querySelector(`.color-option[data-color="${cor}"]`).style.border = `2px solid ${cor}`;
+    }
+
+    function criarCategoria() {
+        const nome = document.getElementById('modal-cat-nome').value.trim();
+        const descricao = document.getElementById('modal-cat-descricao').value.trim();
+        const cor = document.getElementById('modal-cat-cor').value;
+
+        // Validação
+        if (!nome) {
+            mostrarMensagem('Nome da categoria é obrigatório', 'error');
+            document.getElementById('modal-cat-nome').focus();
+            return;
+        }
+
+        if (nome.length < 2) {
+            mostrarMensagem('Nome da categoria deve ter pelo menos 2 caracteres', 'error');
+            document.getElementById('modal-cat-nome').focus();
+            return;
+        }
+
+        // Verificar se já existe uma categoria com este nome
+        const categoriaExistente = categorias.find(cat => cat.nome.toLowerCase() === nome.toLowerCase());
+        if (categoriaExistente) {
+            mostrarMensagem('Já existe uma categoria com este nome', 'error');
+            document.getElementById('modal-cat-nome').focus();
+            return;
+        }
+
+        // Desabilitar botão durante a criação
+        const btnCriar = document.querySelector('#modalNovaCategoria .btn-primary');
+        const textoOriginal = btnCriar.innerHTML;
+        btnCriar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Criando...';
+        btnCriar.disabled = true;
+
+        const dados = {
+            nome: nome,
+            descricao: descricao,
+            cor: cor
+        };
+
+        fetch('/api/notas/categoria/criar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(dados)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    mostrarMensagem('Categoria criada com sucesso!', 'success');
+                    bootstrap.Modal.getInstance(document.getElementById('modalNovaCategoria')).hide();
+                    carregarCategorias();
+
+                    // Se estiver editando uma nota, atualizar o select de categoria
+                    if (notaAtual) {
+                        const selectCategoria = document.getElementById('select-categoria');
+                        selectCategoria.value = data.categoria.id;
+                    }
+                } else {
+                    mostrarMensagem('Erro ao criar categoria: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao criar categoria:', error);
+                mostrarMensagem('Erro ao criar categoria', 'error');
+            })
+            .finally(() => {
+                // Reabilitar botão
+                btnCriar.innerHTML = textoOriginal;
+                btnCriar.disabled = false;
+            });
+    }
+
+    function gerenciarCategorias() {
+        // TODO: Implementar modal de gerenciamento de categorias
+        mostrarMensagem('Funcionalidade de gerenciamento de categorias será implementada em breve!', 'info');
+    }
+
+    // Funções de vínculos
+    function renderizarVinculosTemp() {
+        const container = document.getElementById('lista-vinculos');
+        container.innerHTML = '';
+        if (vinculosTemp.length === 0) {
+            container.innerHTML = '<span class="text-muted">Nenhum vínculo adicionado</span>';
+            return;
+        }
+        vinculosTemp.forEach((v, idx) => {
+            const div = document.createElement('div');
+            div.className = 'd-flex justify-content-between align-items-center p-2 border rounded mb-1';
+            div.innerHTML = `
+            <div>
+                <strong>${v.nota_destino_titulo}</strong>
+                <br><small class="text-muted">${v.tipo_vinculo}</small>
+            </div>
+            <div>
+                <button class="btn btn-sm btn-outline-danger" onclick="removerVinculoTemp(${idx})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+            container.appendChild(div);
+        });
+    }
+
+    function renderizarSelectVinculo() {
+        const select = document.getElementById('select-vinculo');
+        const idAtual = notaAtual ? notaAtual.id : null;
+        select.innerHTML = '<option value="">Selecione uma nota...</option>';
+        todasNotas.forEach(nota => {
+            if (idAtual && nota.id === idAtual) return; // Não pode vincular a si mesma
+            // Não mostrar notas já vinculadas
+            if (vinculosTemp.some(v => v.nota_destino_id === nota.id)) return;
+            select.innerHTML += `<option value="${nota.id}">${nota.titulo}</option>`;
+        });
+    }
+
+    function adicionarVinculo() {
+        const select = document.getElementById('select-vinculo');
+        const tipo = document.getElementById('tipo-vinculo').value;
+        const notaId = parseInt(select.value);
+        if (!notaId) return;
+        const nota = todasNotas.find(n => n.id === notaId);
+        if (!nota) return;
+        vinculosTemp.push({
+            nota_destino_id: nota.id,
+            nota_destino_titulo: nota.titulo,
+            tipo_vinculo: tipo,
+            descricao: ''
+        });
+        renderizarVinculosTemp();
+        renderizarSelectVinculo();
+    }
+
+    function removerVinculoTemp(idx) {
+        vinculosTemp.splice(idx, 1);
+        renderizarVinculosTemp();
+        renderizarSelectVinculo();
+    }
+
+    // Funções auxiliares
+    function gerarResumo() {
+        const conteudo = document.getElementById('textarea-conteudo').value;
+
+        if (!conteudo) {
+            mostrarMensagem('Digite algum conteúdo primeiro', 'error');
+            return;
+        }
+
+        fetch('/api/notas/gerar-resumo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ conteudo: conteudo })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('textarea-resumo').value = data.resumo;
+                } else {
+                    mostrarMensagem('Erro ao gerar resumo: ' + data.error, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao gerar resumo:', error);
+                mostrarMensagem('Erro ao gerar resumo', 'error');
+            });
+    }
+
+    function mostrarNotaVazia() {
+        document.getElementById('editor-nota').style.display = 'none';
+        document.getElementById('nota-vazia').style.display = 'block';
+        document.getElementById('acoes-nota').style.display = 'none';
+        document.getElementById('nota-meta').textContent = '';
+    }
+
+    function formatarData(dataString) {
+        if (!dataString) return '';
+        const data = new Date(dataString);
+        return data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function mostrarMensagem(mensagem, tipo) {
+        // Usar SweetAlert2 se disponível, senão usar alert
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: tipo === 'success' ? 'Sucesso!' : 'Erro!',
+                text: mensagem,
+                icon: tipo,
+                timer: tipo === 'success' ? 2000 : undefined
+            });
+        } else {
+            alert(mensagem);
+        }
+    }
+</script>
+{% endblock %}

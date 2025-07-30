@@ -1,0 +1,292 @@
+{% extends 'layout/base.html' %}
+
+{% block main %}
+<div class="container-fluid py-3">
+    <!-- Header com botão de nova nota -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4><i class="fas fa-columns me-2"></i>Visualização Kanban</h4>
+        <button class="btn btn-primary" onclick="abrirModalNovaNota()">
+            <i class="fas fa-plus me-2"></i>Nova Nota
+        </button>
+    </div>
+    
+    <div id="kanban-board" class="kanban-board d-flex flex-nowrap overflow-auto" style="gap: 1.5rem;">
+        <!-- Colunas serão renderizadas aqui -->
+    </div>
+</div>
+
+<!-- Incluir o partial do modal -->
+{% include 'notas/_partials/modal_nova_nota.html' %}
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.3/dragula.min.css"/>
+<style>
+.kanban-board {
+    min-height: 83vh;
+}
+.kanban-column {
+    min-width: 320px;
+    background: #f8f9fa;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+}
+.kanban-column-header {
+    font-weight: 700;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.kanban-cards {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 40px;
+}
+.kanban-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    margin-bottom: 1rem;
+    padding: 1rem;
+    cursor: grab;
+    border-left: 5px solid #007bff;
+    transition: box-shadow 0.2s;
+}
+.kanban-card.favorita { border-left-color: #ffc107; }
+.kanban-card.arquivada { opacity: 0.6; }
+.kanban-card .nota-titulo { font-weight: 600; font-size: 1.1rem; }
+.kanban-card .nota-tags { font-size: 0.85rem; color: #6c757d; }
+.kanban-card .nota-resumo { color: #6c757d; font-size: 0.95rem; margin-top: 0.5rem; }
+.kanban-card .nota-meta { font-size: 0.8rem; color: #adb5bd; }
+.kanban-column.sem-categoria { border: 2px dashed #adb5bd; background: #f1f3f5; }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dragula/3.7.3/dragula.min.js"></script>
+<script>
+let kanbanCategorias = [];
+let kanbanNotas = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    carregarKanban();
+});
+
+function carregarKanban() {
+    Promise.all([
+        fetch('/api/notas/categorias').then(r => r.json()),
+        fetch('/api/notas').then(r => r.json())
+    ]).then(([catData, notaData]) => {
+        if (catData.success && notaData.success) {
+            kanbanCategorias = catData.categorias;
+            kanbanNotas = notaData.notas;
+            renderizarKanban();
+        }
+    });
+}
+
+function renderizarKanban() {
+    const board = document.getElementById('kanban-board');
+    board.innerHTML = '';
+    // Coluna para notas sem categoria
+    board.appendChild(criarColunaKanban({
+        id: null,
+        nome: 'Sem Categoria',
+        cor: '#adb5bd',
+        notas: kanbanNotas.filter(n => !n.categoria_id)
+    }, true));
+    // Colunas para cada categoria
+    kanbanCategorias.forEach(cat => {
+        const notasCat = kanbanNotas.filter(n => n.categoria_id === cat.id);
+        board.appendChild(criarColunaKanban({
+            ...cat,
+            notas: notasCat
+        }, false));
+    });
+    inicializarDragula();
+}
+
+function criarColunaKanban(cat, semCategoria=false) {
+    const col = document.createElement('div');
+    col.className = 'kanban-column col-lg-3' + (semCategoria ? ' sem-categoria' : '');
+    col.style.borderTop = `4px solid ${cat.cor || '#adb5bd'}`;
+    col.innerHTML = `
+        <div class="kanban-column-header">
+            <span style="width: 18px; height: 18px; border-radius: 50%; background: ${cat.cor || '#adb5bd'}; display: inline-block;"></span>
+            ${cat.nome}
+            <span class="badge bg-secondary ms-auto">${cat.notas.length}</span>
+        </div>
+        <div class="kanban-cards" data-categoria="${cat.id || ''}"></div>
+    `;
+    const cardsContainer = col.querySelector('.kanban-cards');
+    cat.notas.forEach(nota => {
+        cardsContainer.appendChild(criarCardKanban(nota));
+    });
+    return col;
+}
+
+function criarCardKanban(nota) {
+    const card = document.createElement('div');
+    card.className = 'kanban-card' + (nota.favorita ? ' favorita' : '') + (nota.arquivada ? ' arquivada' : '');
+    card.setAttribute('data-id', nota.id);
+    card.innerHTML = `
+        <div class="nota-titulo">${nota.titulo}</div>
+        <div class="nota-meta">${formatarData(nota.atualizada_em)}</div>
+        <div class="nota-resumo">${nota.resumo || nota.conteudo.substring(0, 100) + '...'}</div>
+        <div class="nota-tags">${nota.tags ? nota.tags.split(',').map(t => `<span class='badge bg-light text-dark border me-1'>${t.trim()}</span>`).join('') : ''}</div>
+        <div class="mt-2">
+            <a href="/notas/${nota.id}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> Visualizar</a>
+        </div>
+    `;
+    return card;
+}
+
+function inicializarDragula() {
+    const containers = Array.from(document.querySelectorAll('.kanban-cards'));
+    if (window.kanbanDragula) window.kanbanDragula.destroy();
+    window.kanbanDragula = dragula(containers, {
+        moves: function (el, source, handle, sibling) {
+            return !el.classList.contains('arquivada');
+        }
+    });
+    
+    window.kanbanDragula.on('drop', function (el, target, source, sibling) {
+        const notaId = el.getAttribute('data-id');
+        const novaCategoriaId = target.getAttribute('data-categoria');
+        
+        if (notaId && novaCategoriaId !== source.getAttribute('data-categoria')) {
+            atualizarCategoriaNota(notaId, novaCategoriaId);
+        }
+    });
+}
+
+function atualizarCategoriaNota(notaId, categoriaId) {
+    const categoriaIdValue = categoriaId === '' ? null : categoriaId;
+    
+    fetch(`/api/notas/${notaId}/categoria`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            categoria_id: categoriaIdValue
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Atualizar a nota na lista local
+            const nota = kanbanNotas.find(n => n.id == notaId);
+            if (nota) {
+                nota.categoria_id = categoriaIdValue;
+            }
+            // Mostrar feedback visual
+            mostrarMensagem('Categoria atualizada com sucesso!', 'success');
+        } else {
+            mostrarMensagem('Erro ao atualizar categoria: ' + (data.message || 'Erro desconhecido'), 'error');
+            // Reverter a mudança visual se houver erro
+            carregarKanban();
+        }
+    })
+    .catch(error => {
+        console.error('Erro ao atualizar categoria:', error);
+        mostrarMensagem('Erro ao atualizar categoria', 'error');
+        carregarKanban();
+    });
+}
+
+function mostrarMensagem(mensagem, tipo) {
+    // Criar uma notificação simples
+    const notificacao = document.createElement('div');
+    notificacao.className = `alert alert-${tipo === 'success' ? 'success' : 'danger'} position-fixed`;
+    notificacao.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    notificacao.innerHTML = `
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        ${mensagem}
+    `;
+    document.body.appendChild(notificacao);
+    
+    // Remover automaticamente após 3 segundos
+    setTimeout(() => {
+        if (notificacao.parentNode) {
+            notificacao.remove();
+        }
+    }, 3000);
+}
+
+function formatarData(dataString) {
+    if (!dataString) return '';
+    const data = new Date(dataString);
+    return data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+// Funções para o modal de nova nota
+function abrirModalNovaNota() {
+    document.getElementById('modal-titulo').value = '';
+    document.getElementById('modal-conteudo').value = '';
+    document.getElementById('modal-categoria').value = '';
+    document.getElementById('modal-tags').value = '';
+
+    // Carregar categorias no select
+    carregarCategoriasModal();
+
+    const modal = new bootstrap.Modal(document.getElementById('modalNovaNota'));
+    modal.show();
+}
+
+function carregarCategoriasModal() {
+    const selectCategoria = document.getElementById('modal-categoria');
+    selectCategoria.innerHTML = '<option value="">Sem categoria</option>';
+    
+    kanbanCategorias.forEach(cat => {
+        selectCategoria.innerHTML += `<option value="${cat.id}">${cat.nome}</option>`;
+    });
+}
+
+function criarNota() {
+    const titulo = document.getElementById('modal-titulo').value;
+    const conteudo = document.getElementById('modal-conteudo').value;
+    const categoria = document.getElementById('modal-categoria').value;
+    const tags = document.getElementById('modal-tags').value;
+
+    if (!titulo || !conteudo) {
+        mostrarMensagem('Título e conteúdo são obrigatórios', 'error');
+        return;
+    }
+
+    const dados = {
+        titulo: titulo,
+        conteudo: conteudo,
+        categoria_id: categoria || null,
+        tags: tags
+    };
+
+    fetch('/api/nota/criar', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dados)
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                mostrarMensagem('Nota criada com sucesso!', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('modalNovaNota')).hide();
+                carregarKanban(); // Recarregar o kanban
+            } else {
+                mostrarMensagem('Erro ao criar nota: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao criar nota:', error);
+            mostrarMensagem('Erro ao criar nota', 'error');
+        });
+}
+
+
+</script>
+{% endblock %} 

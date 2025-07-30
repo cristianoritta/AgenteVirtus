@@ -23,13 +23,20 @@
             <i class="fa-solid fa-keyboard"></i>
             <span>Agentes</span>
         </a>
-        <div id="collapseAgentes" class="collapse" aria-labelledby="headingAgentes"
-            data-bs-parent="#accordionSidebar">
+        <div id="collapseAgentes" class="collapse" aria-labelledby="headingAgentes" data-bs-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <h6 class="collapse-header">Agentes inteligentes</h6>
                 <a class="collapse-item" href="{{ url_for('canva') }}">Criar Equipe</a>
                 <a class="collapse-item" href="{{ url_for('listar_equipes_inteligentes') }}">Minhas Equipes</a>
-
+                <a class="collapse-item" href="{{ url_for('listar_execucoes') }}">Histórico de Execuções</a>
+                
+                {% if menus %}
+                <hr>
+                <h6 class="collapse-header">Equipes no Menu</h6>
+                {% for menu in menus %}
+                <a class="collapse-item" href="{{ url_for('agentes_menu', id=menu.id) }}">{{ menu.nome }}</a>
+                {% endfor %}
+                {% endif %}
             </div>
         </div>
     </li>
@@ -48,38 +55,42 @@
             <span>Transcrever</span>
         </a>
     </li>
-
+    <li class="nav-item">
+        <a class="nav-link" href="/ferramentas/pdfs">
+            <i class="fa-solid fa-file-pdf"></i>
+            <span>PDFs</span>
+        </a>
+    </li>
 
     <!-- Divider -->
     <hr class="sidebar-divider d-none d-md-block">
-    <li class="nav-item">
-        <a class="nav-link" href="/delegacia/prompts">
-            <i class="fa-solid fa-keyboard"></i>
-            <span>Prompts</span>
-        </a>
-    </li>
     <li class="nav-item">
         <a class="nav-link" href="/notas">
             <i class="fa-solid fa-note-sticky"></i>
             <span>Notas</span>
         </a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link" href="/notas/kanban">
+            <i class="fa-solid fa-th-large"></i>
+            <span>Kanban</span>
+        </a>
+    </li>
 
     <li class="nav-item">
-        <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#collapseGpts"
-            aria-expanded="false" aria-controls="collapseGpts">
+        <a class="nav-link" href="#" data-bs-toggle="collapse" data-bs-target="#collapseGpts" aria-expanded="false"
+            aria-controls="collapseGpts">
             <i class="fa-solid fa-robot"></i>
             <span>Assistentes (GPTs)</span>
         </a>
-        <div id="collapseGpts" class="collapse" aria-labelledby="headingGpts"
-            data-bs-parent="#accordionSidebar">
+        <div id="collapseGpts" class="collapse" aria-labelledby="headingGpts" data-bs-parent="#accordionSidebar">
             <div class="bg-white py-2 collapse-inner rounded">
                 <h6 class="collapse-header">Ações</h6>
-                <a class="collapse-item" href="/gpts">Meus Assistentes</a>
+                <a class="collapse-item" href="/assistentes">Meus Assistentes</a>
                 <hr>
-                
+
                 {% for gpt in gpts %}
-                    <a class="collapse-item" href="/gpts/chat/{{ gpt.id }}">{{ gpt.nome }}</a>
+                <a class="collapse-item" href="/assistentes/chat/{{ gpt.id }}">{{ gpt.nome }}</a>
                 {% endfor %}
             </div>
         </div>
@@ -89,7 +100,7 @@
     <hr class="sidebar-divider d-none d-md-block">
 
     <li class="nav-item">
-        <a class="nav-link" href="/user/minhaconta">
+        <a class="nav-link" href="/minhaconta">
             <i class="fa-solid fa-user"></i>
             <span>Minha Conta</span>
         </a>

@@ -12,7 +12,18 @@
         <div class="col-12">
             <div class="card shadow mb-4">
                 <div class="card-header py-3">
-                    <h6 class="m-0 font-weight-bold text-primary">Upload de Áudio</h6>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary">Upload de Áudio</h6>
+                        <div class="conversa-info" id="conversa-info" style="display: none;">
+                            <small class="text-muted">
+                                <i class="fas fa-link"></i> 
+                                <span id="conversa-titulo">Nova conversa</span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary ml-2" onclick="editarTituloConversa()">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </small>
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <form id="formTranscricao" enctype="multipart/form-data">
@@ -30,14 +41,16 @@
                         <div id="textoTranscricao" class="transcricao-box"></div>
                     </div>
                 </div>
-                <div class="card-footer d-flex gap-2" id="cardFooter" style="display: nones;">
+                <div class="card-footer d-flex gap-2" id="cardFooter" style="display: none;">
                     <button class="btn btn-primary" id="btnCopiar" data-text="" onclick="copyToClipboard(this)">
                         <i class="fas fa-copy"></i> Copiar
                     </button>
                     
                     <form class="m-0" action="/ferramentas/chatbot" method="post">
-                        <input type="hiddden" name="mensagem" id="input-textoTranscricao">
-                        <input type="hiddden" name="chat" value="init">
+                        <input type="hidden" name="mensagem" id="input-textoTranscricao">
+                        <input type="hidden" name="chat" value="init">
+                        <input type="hidden" name="conversa_id" id="conversa_id">
+                        <input type="hidden" name="hash_conversa" id="hash_conversa">
                         <button type="submit" class="btn btn-success">
                             <i class="fas fa-robot"></i> Chatbot
                         </button>
@@ -48,12 +61,46 @@
     </div>
 </div>
 
+<!-- Modal para editar título da conversa -->
+<div class="modal fade" id="modalEditarTitulo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Título da Conversa</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="formEditarTitulo">
+                    <div class="form-group">
+                        <label for="novo_titulo">Título da Conversa</label>
+                        <input type="text" class="form-control" id="novo_titulo" name="titulo" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarNovoTitulo()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+let conversaAtual = null;
+
 document.getElementById('formTranscricao').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     const btnTranscrever = document.getElementById('btnTranscrever');
     const formData = new FormData(e.target);
+    
+    // Adicionar informações da conversa se existirem
+    if (conversaAtual) {
+        formData.append('conversa_id', conversaAtual.id);
+        formData.append('hash_conversa', conversaAtual.hash_conversa);
+    }
     
     try {
         btnTranscrever.disabled = true;
@@ -67,11 +114,25 @@ document.getElementById('formTranscricao').addEventListener('submit', async (e) 
         const data = await response.json();
         
         if (data.status === 'success') {
+            // Atualizar informações da conversa se for a primeira transcrição
+            if (!conversaAtual && data.conversa_id) {
+                conversaAtual = {
+                    id: data.conversa_id,
+                    hash_conversa: data.hash_conversa,
+                    titulo: 'Transcrição de áudio'
+                };
+                atualizarInfoConversa();
+            }
+            
             document.getElementById('resultadoTranscricao').style.display = 'block';
             document.getElementById('textoTranscricao').innerHTML = data.transcricao.replace(/\\n/g, '<br>');
             document.getElementById('input-textoTranscricao').value = data.transcricao;
             document.getElementById('btnCopiar').setAttribute('data-text', data.transcricao);
             document.getElementById('cardFooter').style.display = 'block';
+            
+            // Atualizar campos ocultos do formulário do chatbot
+            document.getElementById('conversa_id').value = data.conversa_id || '';
+            document.getElementById('hash_conversa').value = data.hash_conversa || '';
         } else {
             Swal.fire({
                 icon: 'error',
@@ -90,10 +151,76 @@ document.getElementById('formTranscricao').addEventListener('submit', async (e) 
         btnTranscrever.innerHTML = '<i class="fas fa-microphone"></i> Transcrever';
     }
 });
+
+// Função para atualizar informações da conversa na interface
+function atualizarInfoConversa() {
+    if (conversaAtual) {
+        document.getElementById('conversa-titulo').textContent = conversaAtual.titulo;
+        document.getElementById('conversa-info').style.display = 'block';
+    }
+}
+
+// Função para editar título da conversa
+function editarTituloConversa() {
+    if (!conversaAtual) return;
+    
+    document.getElementById('novo_titulo').value = conversaAtual.titulo;
+    $('#modalEditarTitulo').modal('show');
+}
+
+// Função para salvar novo título
+function salvarNovoTitulo() {
+    if (!conversaAtual) return;
+    
+    const novoTitulo = document.getElementById('novo_titulo').value.trim();
+    if (!novoTitulo) return;
+    
+    const formData = new FormData();
+    formData.append('conversa_id', conversaAtual.id);
+    formData.append('titulo', novoTitulo);
+    
+    fetch('/api/conversa/atualizar-titulo', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            conversaAtual.titulo = novoTitulo;
+            atualizarInfoConversa();
+            $('#modalEditarTitulo').modal('hide');
+        } else {
+            alert('Erro ao atualizar título: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erro na requisição:', error);
+        alert('Erro ao atualizar título');
+    });
+}
+
+// Função para copiar texto
+function copyToClipboard(element) {
+    const text = element.getAttribute('data-text');
+    navigator.clipboard.writeText(text).then(function() {
+        // Feedback visual
+        const originalText = element.innerHTML;
+        element.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+        setTimeout(function() {
+            element.innerHTML = originalText;
+        }, 1000);
+    });
+}
 </script>
+
 <style>
     .transcricao-box {
         white-space: pre-line;
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        padding: 1rem;
+        min-height: 100px;
     }
 </style>
 {% endblock %}

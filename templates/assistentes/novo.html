@@ -1,0 +1,41 @@
+{% extends "layout/base.html" %}
+
+{% block main %}
+<div class="row">
+    <div class="col-lg-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title">{{ 'Editar Assistente' if assistente and assistente.id else 'Novo Assistente' }}</h5>
+            </div>
+
+            <div class="card-body">
+                <form action="{{ url_for('assistentes_editar', id=assistente.id) if assistente and assistente.id else url_for('assistentes_salvar') }}" method="post" enctype="multipart/form-data" id="form-assistente">
+                    <div class="row">
+                        <div class="col-lg-12">
+                            <div class="form-group">
+                                <label for="nome">Nome</label>
+                                <input type="text" class="form-control" id="nome" name="nome" value="{{ assistente.nome }}" required="">
+                            </div>
+                        </div>
+                        <div class="col-lg-12">
+                            <div class="form-group">
+                                <label for="descricao">Descrição</label>
+                                <textarea class="form-control" id="descricao" name="descricao" rows="10" required="">{{ assistente.descricao }}</textarea>
+                            </div>
+                        </div>
+                        <div class="col-lg-12">
+                            <div class="form-group">
+                                <label for="modelo">Conhecimento</label>
+                                <input type="file" class="form-control" id="conhecimento" name="conhecimento">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer">
+                <button type="submit" class="btn btn-primary" form="form-assistente">{{ 'Salvar Alterações' if assistente and assistente.id else 'Salvar' }}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,336 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Conversas - Sistema de Memória{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">Sistema de Memória - Conversas</h4>
+                    <div class="card-tools">
+                        <button type="button" class="btn btn-primary" onclick="criarNovaConversa()">
+                            <i class="fas fa-plus"></i> Nova Conversa
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Lista de Conversas -->
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5>Conversas Recentes</h5>
+                                </div>
+                                <div class="card-body p-0">
+                                    <div id="lista-conversas" class="list-group list-group-flush">
+                                        <!-- Conversas serão carregadas aqui -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Detalhes da Conversa -->
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 id="titulo-conversa">Selecione uma conversa</h5>
+                                    <div class="card-tools" id="acoes-conversa" style="display: none;">
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="editarTitulo()">
+                                            <i class="fas fa-edit"></i> Editar Título
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="encerrarConversa()">
+                                            <i class="fas fa-times"></i> Encerrar
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="card-body">
+                                    <div id="detalhes-conversa">
+                                        <p class="text-muted">Selecione uma conversa da lista para visualizar os detalhes.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para criar nova conversa -->
+<div class="modal fade" id="modalNovaConversa" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nova Conversa</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="formNovaConversa">
+                    <div class="form-group">
+                        <label for="titulo">Título da Conversa</label>
+                        <input type="text" class="form-control" id="titulo" name="titulo" placeholder="Digite um título para a conversa">
+                    </div>
+                    <div class="form-group">
+                        <label for="tipo_conversa">Tipo de Conversa</label>
+                        <select class="form-control" id="tipo_conversa" name="tipo_conversa">
+                            <option value="chatbot">Chatbot</option>
+                            <option value="transcricao">Transcrição</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarNovaConversa()">Criar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para editar título -->
+<div class="modal fade" id="modalEditarTitulo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Título</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="formEditarTitulo">
+                    <div class="form-group">
+                        <label for="novo_titulo">Novo Título</label>
+                        <input type="text" class="form-control" id="novo_titulo" name="titulo" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarNovoTitulo()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let conversaAtual = null;
+
+// Carregar conversas ao iniciar
+document.addEventListener('DOMContentLoaded', function() {
+    carregarConversas();
+});
+
+function carregarConversas() {
+    fetch('/api/conversas')
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                exibirConversas(data.conversas);
+            } else {
+                console.error('Erro ao carregar conversas:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Erro na requisição:', error);
+        });
+}
+
+function exibirConversas(conversas) {
+    const container = document.getElementById('lista-conversas');
+    container.innerHTML = '';
+    
+    if (conversas.length === 0) {
+        container.innerHTML = '<div class="list-group-item text-muted">Nenhuma conversa encontrada</div>';
+        return;
+    }
+    
+    conversas.forEach(conversa => {
+        const item = document.createElement('div');
+        item.className = 'list-group-item list-group-item-action';
+        item.onclick = () => carregarConversa(conversa.id);
+        
+        item.innerHTML = `
+            <div class="d-flex w-100 justify-content-between">
+                <h6 class="mb-1">${conversa.titulo}</h6>
+                <small class="text-muted">${conversa.tipo_conversa}</small>
+            </div>
+            <p class="mb-1 text-muted">${conversa.total_mensagens} mensagens</p>
+            <small class="text-muted">Atualizada: ${conversa.atualizada_em}</small>
+        `;
+        
+        container.appendChild(item);
+    });
+}
+
+function carregarConversa(conversaId) {
+    fetch(`/api/conversa?conversa_id=${conversaId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                conversaAtual = data.conversa;
+                exibirDetalhesConversa(data.conversa, data.mensagens);
+            } else {
+                console.error('Erro ao carregar conversa:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Erro na requisição:', error);
+        });
+}
+
+function exibirDetalhesConversa(conversa, mensagens) {
+    document.getElementById('titulo-conversa').textContent = conversa.titulo;
+    document.getElementById('acoes-conversa').style.display = 'block';
+    
+    const container = document.getElementById('detalhes-conversa');
+    container.innerHTML = `
+        <div class="mb-3">
+            <strong>ID:</strong> ${conversa.id}<br>
+            <strong>Hash:</strong> <code>${conversa.hash_conversa}</code><br>
+            <strong>Tipo:</strong> ${conversa.tipo_conversa}<br>
+            <strong>Criada em:</strong> ${conversa.criada_em}<br>
+            <strong>Atualizada em:</strong> ${conversa.atualizada_em}
+        </div>
+        <hr>
+        <h6>Mensagens (${mensagens.length})</h6>
+        <div class="chat-messages" style="max-height: 400px; overflow-y: auto;">
+            ${mensagens.map(msg => `
+                <div class="message ${msg.role === 'user' ? 'user-message' : 'assistant-message'} mb-2">
+                    <div class="message-header">
+                        <strong>${msg.role === 'user' ? 'Usuário' : 'Assistente'}</strong>
+                        <small class="text-muted">${msg.timestamp}</small>
+                    </div>
+                    <div class="message-content p-2 bg-light rounded">
+                        ${msg.conteudo.replace(/\n/g, '<br>')}
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
+}
+
+function criarNovaConversa() {
+    document.getElementById('formNovaConversa').reset();
+    $('#modalNovaConversa').modal('show');
+}
+
+function salvarNovaConversa() {
+    const formData = new FormData(document.getElementById('formNovaConversa'));
+    
+    fetch('/api/conversa/criar', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            $('#modalNovaConversa').modal('hide');
+            carregarConversas();
+            // Carregar a nova conversa
+            carregarConversa(data.conversa.id);
+        } else {
+            alert('Erro ao criar conversa: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erro na requisição:', error);
+        alert('Erro ao criar conversa');
+    });
+}
+
+function editarTitulo() {
+    if (!conversaAtual) return;
+    
+    document.getElementById('novo_titulo').value = conversaAtual.titulo;
+    $('#modalEditarTitulo').modal('show');
+}
+
+function salvarNovoTitulo() {
+    if (!conversaAtual) return;
+    
+    const formData = new FormData();
+    formData.append('conversa_id', conversaAtual.id);
+    formData.append('titulo', document.getElementById('novo_titulo').value);
+    
+    fetch('/api/conversa/atualizar-titulo', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            $('#modalEditarTitulo').modal('hide');
+            carregarConversas();
+            // Recarregar a conversa atual
+            carregarConversa(conversaAtual.id);
+        } else {
+            alert('Erro ao atualizar título: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erro na requisição:', error);
+        alert('Erro ao atualizar título');
+    });
+}
+
+function encerrarConversa() {
+    if (!conversaAtual) return;
+    
+    if (!confirm('Tem certeza que deseja encerrar esta conversa?')) return;
+    
+    const formData = new FormData();
+    formData.append('conversa_id', conversaAtual.id);
+    
+    fetch('/api/conversa/encerrar', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            conversaAtual = null;
+            document.getElementById('titulo-conversa').textContent = 'Selecione uma conversa';
+            document.getElementById('acoes-conversa').style.display = 'none';
+            document.getElementById('detalhes-conversa').innerHTML = '<p class="text-muted">Selecione uma conversa da lista para visualizar os detalhes.</p>';
+            carregarConversas();
+        } else {
+            alert('Erro ao encerrar conversa: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Erro na requisição:', error);
+        alert('Erro ao encerrar conversa');
+    });
+}
+</script>
+
+<style>
+.user-message .message-content {
+    background-color: #e3f2fd !important;
+    border-left: 4px solid #2196f3;
+}
+
+.assistant-message .message-content {
+    background-color: #f3e5f5 !important;
+    border-left: 4px solid #9c27b0;
+}
+
+.message-header {
+    margin-bottom: 5px;
+}
+
+.chat-messages {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    padding: 10px;
+}
+</style>
+{% endblock %} 

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AgenteVirtus: Criador de Agentes</title>
+    <title>Criador de Agentes</title>
     <link rel="stylesheet" href="/static/css/agentes_canva.css">
     <link rel="stylesheet" href="/static/vendor/sweetalert/sweetalert.min.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet">
@@ -19,7 +19,7 @@
                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <polygon points="12 2 20 7 20 17 12 22 4 17 4 7 12 2"></polygon>
                 </svg>
-                AgenteVirtus: Criador de Agentes
+                Criador de Agentes
             </a>
             <div class="crew-settings">
                 <span class="switch-label">Processo Sequencial</span>
@@ -91,6 +91,10 @@
                     <div class="component" draggable="true" data-type="formatoSaida">
                         <div class="component-icon bg-green">F</div>
                         <span>Formato Saída</span>
+                    </div>
+                    <div class="component" draggable="true" data-type="template">
+                        <div class="component-icon bg-green">T</div>
+                        <span>Template</span>
                     </div>
                 </div>
             </div>
@@ -169,6 +173,9 @@
                         <option value="pdf">Documento PDF</option>
                         <option value="text">Texto</option>
                         <option value="audio">Áudio</option>
+                        <option value="planilha">Planilha (Excel/CSV)</option>
+                        <option value="imagem">Imagem (#TODO)</option>
+                        <option value="video">Vídeo (#TODO)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -227,9 +234,33 @@
                 </div>
                 <div class="form-group">
                     <label for="formatoSaidaDescription">Descrição</label>
-                    <textarea id="formatoSaidaDescription" placeholder="Esse texto não será processado por IA"></textarea>
+                    <textarea id="formatoSaidaDescription"
+                        placeholder="Esse texto não será processado por IA"></textarea>
                 </div>
                 <button class="btn btn-primary" onclick="saveFormatoSaidaConfig()">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuração do Template -->
+    <div id="templateModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Configurar Template</h2>
+                <span class="close-modal" onclick="closeTemplateModal()">&times;</span>
+            </div>
+            <div id="templateConfigForm">
+                <div class="form-group">
+                    <label for="templateDescription">Descrição</label>
+                    <textarea id="templateDescription" placeholder="Descreva o template"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="templateFile">Arquivo Template (.doc/.docx)</label>
+                    <input type="file" id="templateFile" accept=".doc,.docx" class="form-control">
+                    <small class="form-text text-muted">Selecione um arquivo Word (.doc ou .docx) para usar como
+                        template</small>
+                </div>
+                <button class="btn btn-primary" onclick="saveTemplateConfig()">Salvar</button>
             </div>
         </div>
     </div>
@@ -256,10 +287,11 @@
     </div>
 
     <script src="/static/vendor/sweetalert/sweetalert.min.js"></script>
-    
+
     <!-- Dados da equipe carregados do servidor -->
-    <div id="equipe-data" style="display: none;" data-equipe='{{ equipe_data|tojson|safe if equipe_data else "null" }}'></div>
-    
+    <div id="equipe-data" style="display: none;" data-equipe='{{ equipe_data|tojson|safe if equipe_data else "null" }}'>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const canvas = document.getElementById('canvas');
@@ -313,6 +345,8 @@
                         showGuardrailModal(nodeId);
                     } else if (draggedComponent === 'formatoSaida') {
                         showFormatoSaidaModal(nodeId);
+                    } else if (draggedComponent === 'template') {
+                        showTemplateModal(nodeId);
                     }
                     draggedComponent = null;
                 }
@@ -334,7 +368,8 @@
                     'task': { title: 'Tarefa', color: '#ffcc00' },
                     'trigger': { title: 'Trigger', color: '#dc2626' },
                     'guardrail': { title: 'Guardrail', color: '#f97316' },
-                    'formatoSaida': { title: 'Formato Saída', color: '#10b981' }
+                    'formatoSaida': { title: 'Formato Saída', color: '#10b981' },
+                    'template': { title: 'Template', color: '#10b981' }
                 };
 
                 const nodeInfo = nodeTypes[type] || { title: 'Componente', color: '#2563eb' };
@@ -357,6 +392,8 @@
                         <div class="port-divider"></div>
                         <div class="port port-out" data-port="out-1" data-node="${nodeId}">Saída</div>`;
                 } else if (type === 'formatoSaida') {
+                    portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>`;
+                } else if (type === 'template') {
                     portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>`;
                 } else { // Para agentes e outros tipos
                     portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>
@@ -488,11 +525,11 @@
 
                         // Não permitir conexões para o mesmo nó
                         if (endNode !== connectionStart.node) {
-                            
+
                             const startNodeElement = document.getElementById(connectionStart.node);
                             const endNodeElement = document.getElementById(endNode);
 
-                            if(startNodeElement && endNodeElement) {
+                            if (startNodeElement && endNodeElement) {
                                 const endNodeType = endNodeElement.getAttribute('data-type');
                                 let isValid = false;
 
@@ -501,7 +538,7 @@
                                     if (endNodeType === 'task' && endPort === 'in-1') {
                                         isValid = true;
                                     }
-                                } 
+                                }
                                 // Regra 2: A porta de saída padrão não pode se conectar a uma tarefa.
                                 else if (connectionStart.port === 'out-1') {
                                     if (endNodeType !== 'task' && endPort === 'in-1') {
@@ -509,7 +546,7 @@
                                     }
                                 }
 
-                                if(isValid) {
+                                if (isValid) {
                                     createConnection(
                                         connectionStart.node,
                                         connectionStart.port,
@@ -551,7 +588,7 @@
                 pathElement.setAttribute('stroke', connectionColor);
                 pathElement.setAttribute('stroke-width', '2');
                 pathElement.setAttribute('fill', 'none');
-                
+
                 svgLayer.appendChild(pathElement);
             }
 
@@ -601,7 +638,7 @@
                         const path = createConnectionPath(startX, startY, endX, endY);
 
                         const connectionColor = connection.startPort === 'tasks' ? '#f59e0b' : '#2563eb';
-                        
+
                         const pathElement = document.createElementNS(svgNS, "path");
                         pathElement.setAttribute('d', path);
                         pathElement.setAttribute('stroke', connectionColor);
@@ -615,18 +652,18 @@
                         hitbox.setAttribute('fill', 'none');
                         hitbox.style.cursor = 'pointer';
                         hitbox.style.pointerEvents = 'stroke'; // Eventos apenas na área da linha
-                        
-                        hitbox.addEventListener('mouseover', function() {
+
+                        hitbox.addEventListener('mouseover', function () {
                             pathElement.setAttribute('stroke-width', '4');
                         });
 
-                        hitbox.addEventListener('mouseout', function() {
+                        hitbox.addEventListener('mouseout', function () {
                             pathElement.setAttribute('stroke-width', '2');
                         });
 
                         svgLayer.appendChild(pathElement);
                         svgLayer.appendChild(hitbox);
-                        
+
                         // Adiciona um grupo para o botão de exclusão
                         const midX = (startX + endX) / 2;
                         const midY = (startY + endY) / 2;
@@ -635,7 +672,7 @@
                         deleteGroup.style.cursor = 'pointer';
                         deleteGroup.style.pointerEvents = 'all'; // Garante que o grupo receba eventos
 
-                        deleteGroup.addEventListener('dblclick', function(e) {
+                        deleteGroup.addEventListener('dblclick', function (e) {
                             e.preventDefault();
                             e.stopPropagation();
                             deleteConnection(connection.id);
@@ -661,7 +698,7 @@
 
                         deleteGroup.appendChild(deleteCircle);
                         deleteGroup.appendChild(deleteX);
-                        
+
                         svgLayer.appendChild(deleteGroup);
                     }
                 });
@@ -745,6 +782,17 @@
 
             window.closeFormatoSaidaModal = function () {
                 document.getElementById('formatoSaidaModal').style.display = 'none';
+                currentNodeBeingConfigured = null;
+            }
+
+            window.showTemplateModal = function (nodeId) {
+                currentNodeBeingConfigured = nodeId;
+                clearModalFields();
+                document.getElementById('templateModal').style.display = 'block';
+            }
+
+            window.closeTemplateModal = function () {
+                document.getElementById('templateModal').style.display = 'none';
                 currentNodeBeingConfigured = null;
             }
 
@@ -856,6 +904,51 @@
                 closeFormatoSaidaModal();
             }
 
+            window.saveTemplateConfig = async function () {
+                if (!currentNodeBeingConfigured) return;
+
+                const description = document.getElementById('templateDescription').value;
+                const fileInput = document.getElementById('templateFile');
+                const file = fileInput.files[0];
+
+                if (!description || !file) {
+                    alert('Por favor, preencha todos os campos e selecione um arquivo .doc ou .docx');
+                    return;
+                }
+
+                // Envia o arquivo para o backend imediatamente
+                const formData = new FormData();
+                formData.append('node_id', currentNodeBeingConfigured);
+                formData.append('equipe_id', window.equipeData?.id || '');
+                formData.append('file', file);
+
+                const equipeId = window.equipeData ? window.equipeData.id : 'undefined';
+                alert('ID da equipe: ' + equipeId);
+
+                try {
+                    const response = await fetch('/agentesinteligentes/upload_template', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (data.status !== 'success') {
+                        alert('Erro ao salvar template: ' + data.message);
+                        return;
+                    }
+                } catch (e) {
+                    alert('Erro ao salvar template!');
+                    return;
+                }
+
+                const node = nodes.find(n => n.id === currentNodeBeingConfigured);
+                if (node) {
+                    node.config = { description, fileName: file.name };
+                    updateNodeDetails(node.id);
+                }
+
+                closeTemplateModal();
+            }
+
             // Função para limpar campos do modal
             function clearModalFields() {
                 // Limpar campos do modal de agente
@@ -879,6 +972,10 @@
                 // Limpar campos do modal de formato de saída
                 document.getElementById('formatoSaidaType').value = 'texto';
                 document.getElementById('formatoSaidaDescription').value = '';
+
+                // Limpar campos do modal de template
+                document.getElementById('templateDescription').value = '';
+                document.getElementById('templateFile').value = '';
             }
 
             // Função para atualizar detalhes do nó
@@ -910,7 +1007,8 @@
                     const triggerTypeLabels = {
                         'pdf': 'PDF',
                         'text': 'Texto',
-                        'audio': 'Áudio'
+                        'audio': 'Áudio',
+                        'planilha': 'Planilha'
                     };
                     const typeLabel = triggerTypeLabels[node.config.type] || node.config.type;
                     titleElement.textContent = `Trigger - ${typeLabel}`;
@@ -946,6 +1044,16 @@
                             <small>Descrição:</small> ${node.config.description.substring(0, 50)}...
                         </div>
                     `;
+                } else if (node.type === 'template' && node.config.description) {
+                    titleElement.textContent = 'Template (Word)';
+                    detailsElement.innerHTML = `
+                        <div class="node-detail-item">
+                            <small>Descrição:</small> ${node.config.description.substring(0, 50)}...
+                        </div>
+                        <div class="node-detail-item">
+                            <small>Arquivo:</small> ${node.config.fileName || ''}
+                        </div>
+                    `;
                 }
             }
 
@@ -979,6 +1087,10 @@
                     document.getElementById('formatoSaidaType').value = node.config.type || 'texto';
                     document.getElementById('formatoSaidaDescription').value = node.config.description || '';
                     document.getElementById('formatoSaidaModal').style.display = 'block';
+                } else if (node.type === 'template') {
+                    document.getElementById('templateDescription').value = node.config.description || '';
+                    document.getElementById('templateFile').value = '';
+                    document.getElementById('templateModal').style.display = 'block';
                 }
             }
 
@@ -1011,7 +1123,7 @@
                 }
 
                 const layout = equipeData.layout;
-                
+
                 // Carregar nós
                 layout.nodes.forEach(nodeData => {
                     const newNodeId = createNodeFromData(nodeData);
@@ -1039,7 +1151,8 @@
                     'task': { title: 'Tarefa', color: '#ffcc00' },
                     'trigger': { title: 'Trigger', color: '#dc2626' },
                     'guardrail': { title: 'Guardrail', color: '#f97316' },
-                    'formatoSaida': { title: 'Formato Saída', color: '#10b981' }
+                    'formatoSaida': { title: 'Formato Saída', color: '#10b981' },
+                    'template': { title: 'Template', color: '#10b981' }
                 };
                 const nodeInfo = nodeTypes[nodeData.type];
 
@@ -1054,11 +1167,13 @@
                         <div class="port port-out" data-port="out-1" data-node="${nodeId}">Saída</div>`;
                 } else if (nodeData.type === 'formatoSaida') {
                     portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>`;
+                } else if (nodeData.type === 'template') {
+                    portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>`;
                 } else { // agent or other types
                     portsHTML = `<div class="port port-in" data-port="in-1" data-node="${nodeId}">Entrada</div>
                        <div class="port-divider"></div>
                        <div class="port port-out" data-port="out-1" data-node="${nodeId}">Saída</div>` +
-                       (nodeData.type === 'agent' ? `<div class="port-divider"></div><div class="port port-out port-task" data-port="tasks" data-node="${nodeId}">Tarefas</div>` : '');
+                        (nodeData.type === 'agent' ? `<div class="port-divider"></div><div class="port port-out port-task" data-port="tasks" data-node="${nodeId}">Tarefas</div>` : '');
                 }
 
                 const node = document.createElement('div');
@@ -1090,7 +1205,7 @@
             // Iniciar o carregamento da equipe se os dados estiverem presentes
             const equipeDataElement = document.getElementById('equipe-data');
             let equipeData = null;
-            
+
             if (equipeDataElement) {
                 const equipeDataString = equipeDataElement.getAttribute('data-equipe');
                 if (equipeDataString && equipeDataString !== 'null') {
@@ -1098,11 +1213,11 @@
                         equipeData = JSON.parse(equipeDataString);
                     } catch (e) {
                         console.error("Erro ao fazer o parse dos dados da equipe:", e);
-                        console.error("String recebida:", equipeDataString);
                     }
                 }
             }
-            
+
+            window.equipeData = equipeData;
             carregarEquipe(equipeData);
 
             // Funções para o modal de salvar equipe
@@ -1139,7 +1254,7 @@
 
                 try {
                     const processType = document.getElementById('processType').checked ? 'hierarchical' : 'sequential';
-                    
+
                     const layoutData = {
                         nodes: nodes.map(n => ({
                             id: n.id,

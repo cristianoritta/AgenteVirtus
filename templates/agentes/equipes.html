@@ -33,6 +33,8 @@
                             <th>Nome</th>
                             <th>Descrição</th>
                             <th>Criado em</th>
+                            <th>Formato de Saída</th>
+                            <th>Menu</th>
                             <th>Executar</th>
                             <th width="1%">Ações</th>
                         </tr>
@@ -43,6 +45,26 @@
                             <td>{{ equipe.nome }}</td>
                             <td>{{ equipe.descricao }}</td>
                             <td>{{ equipe.criado_em.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>{{ equipe.formato_saida }}</td>
+                            <td>
+                                {% if equipe.menu_ordem and equipe.menu_ordem > 0 %}
+                                <button 
+                                    class="btn btn-outline-danger btn-salvar-menu"
+                                    data-equipe-id="{{ equipe.id }}"
+                                    data-equipe-nome="{{ equipe.nome }}"
+                                    title="Remover do Menu">
+                                    <i class="fa-solid fa-minus"></i>&nbsp;
+                                </button>
+                                {% else %}
+                                <button 
+                                    class="btn btn-outline-success btn-salvar-menu"
+                                    data-equipe-id="{{ equipe.id }}"
+                                    data-equipe-nome="{{ equipe.nome }}"
+                                    title="Adicionar ao Menu">
+                                    <i class="fa-solid fa-plus"></i>&nbsp;
+                                </button>
+                                {% endif %}
+                            </td>
                             <td>
                                 <a href="/agentesinteligentes/executar_tarefas/{{ equipe.id }}"
                                     class="btn btn-success bg-green-500">
@@ -104,6 +126,42 @@
                     if (result.isConfirmed) {
                         window.location.href = '/agentesinteligentes/equipe/' + equipeId + '/deletar';
                     }
+                });
+            });
+        });
+
+        // Adicionar event listeners para botões de salvar menu (adicionar/remover)
+        const botoesSalvarMenu = document.querySelectorAll('.btn-salvar-menu');
+        botoesSalvarMenu.forEach(function (botao) {
+            botao.addEventListener('click', function () {
+                const equipeId = this.getAttribute('data-equipe-id');
+                const nomeEquipe = this.getAttribute('data-equipe-nome');
+
+                fetch(`/agentesinteligentes/equipe/${equipeId}/salvar-menu`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    Swal.fire({
+                        title: data.status === 'success' ? 'Sucesso!' : 'Erro!',
+                        text: data.message,
+                        icon: data.status === 'success' ? 'success' : 'error'
+                    }).then(() => {
+                        if (data.status === 'success') {
+                            location.reload();
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    Swal.fire({
+                        title: 'Erro!',
+                        text: 'Erro ao atualizar o menu',
+                        icon: 'error'
+                    });
                 });
             });
         });

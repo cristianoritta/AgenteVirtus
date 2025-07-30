@@ -3,9 +3,51 @@
 {% block main %}
 <div class="container-fluid p-3">
     <div class="row g-3">
-        <!-- Container principal do chat -->
-        <div class="col-12">
+        <!-- Barra lateral com conversas -->
+        <div class="col-md-3">
             <div class="card h-90">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="fas fa-history"></i> Conversas
+                        </h6>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="criarNovaConversa()">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="lista-conversas-sidebar" class="list-group list-group-flush"
+                        style="max-height: calc(100vh - 200px); overflow-y: auto;">
+                        <!-- Conversas serão carregadas aqui -->
+                        <div class="text-center text-muted p-3">
+                            <i class="fas fa-spinner fa-spin"></i> Carregando...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Container principal do chat -->
+        <div class="col-md-9">
+            <div class="card h-90">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-primary">
+                            <i class="fas fa-comments"></i> Chatbot com o Agente Virtus
+                        </h5>
+                        <div class="conversa-info" id="conversa-info" style="display: none;">
+                            <small class="text-muted">
+                                <i class="fas fa-link"></i>
+                                <span id="conversa-titulo">Nova conversa</span>
+                                <button type="button" class="btn btn-sm btn-outline-secondary ml-2"
+                                    onclick="editarTituloConversa()">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                            </small>
+                        </div>
+                    </div>
+                </div>
                 <div class="card-inner chat-container">
                     <!-- Efeito de ondas -->
                     <div class="waves">
@@ -16,7 +58,7 @@
 
                     <!-- Área de mensagens com scroll -->
                     <div id="chat-messages" class="chat-messages"
-                        style="height: calc(100vh - 280px); overflow-y: auto;">
+                        style="height: calc(100vh - 320px); overflow-y: auto;">
 
                         <!-- Mensagem de boas-vindas do assistente -->
                         <div class="message message-assistant">
@@ -43,6 +85,8 @@
                     <div class="chat-input-area">
                         <form id="chat-form" method="POST" action="{{ url_for('chatbot') }}">
                             <input type="hidden" id="ultima-pergunta" name="ultima_pergunta" value="">
+                            <input type="hidden" id="conversa_id" name="conversa_id" value="{% if conversa_id %}{{ conversa_id }}{% endif %}">
+                            <input type="hidden" id="hash_conversa" name="hash_conversa" value="">
                             <div class="chat-input-container">
                                 <textarea type="text" class="form-control" id="mensagem-input" name="mensagem"
                                     placeholder="Digite sua mensagem...">{{ mensagem }}</textarea>
@@ -57,11 +101,74 @@
         </div>
     </div>
 </div>
+
+<!-- Modal para criar nova conversa -->
+<div class="modal fade" id="modalNovaConversa" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Nova Conversa</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="formNovaConversa">
+                    <div class="form-group">
+                        <label for="titulo">Título da Conversa</label>
+                        <input type="text" class="form-control" id="titulo" name="titulo"
+                            placeholder="Digite um título para a conversa">
+                    </div>
+                    <div class="form-group">
+                        <label for="tipo_conversa">Tipo de Conversa</label>
+                        <select class="form-control" id="tipo_conversa" name="tipo_conversa">
+                            <option value="chatbot">Chatbot</option>
+                            <option value="transcricao">Transcrição</option>
+                            <option value="assistente">Assistente</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarNovaConversa()">Criar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para editar título da conversa -->
+<div class="modal fade" id="modalEditarTitulo" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Título da Conversa</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="formEditarTitulo">
+                    <div class="form-group">
+                        <label for="novo_titulo">Título da Conversa</label>
+                        <input type="text" class="form-control" id="novo_titulo" name="titulo" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="salvarNovoTitulo()">Salvar</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <link href="{{ url_for('static', filename='css/chatbot.css') }}" rel="stylesheet">
 <script>
+    let conversaAtual = null;
+
     $(document).ready(function () {
         // Esconder o indicador de digitação
         $('#typing-indicator').removeClass('active');
@@ -71,6 +178,14 @@
         if (chatMessages.length) {
             chatMessages.scrollTop(chatMessages[0].scrollHeight);
         }
+
+        // Carregar conversas na barra lateral
+        carregarConversasSidebar();
+        
+        // Se há conversa_id na URL, carregar a conversa
+        {% if conversa_id %}
+        carregarConversa({{ conversa_id }});
+        {% endif %}
 
         // Configuração do toggle para exibir/ocultar detalhes
         $('body').on('click', '.toggle-details', function () {
@@ -115,18 +230,40 @@
             // Limpar o campo de input
             $('#mensagem-input').val('');
 
+            // Preparar dados para envio
+            const formData = new FormData();
+            formData.append('mensagem', pergunta);
+
+            // Adicionar informações da conversa se existirem
+            if (conversaAtual) {
+                formData.append('conversa_id', conversaAtual.id);
+                formData.append('hash_conversa', conversaAtual.hash_conversa);
+            }
+
             // Enviar a requisição AJAX
             $.ajax({
                 url: "{{ url_for('chatbot') }}",
                 type: "POST",
-                data: {
-                    mensagem: pergunta
-                },
+                data: formData,
+                processData: false,
+                contentType: false,
                 success: function (response) {
                     // Remover indicador de digitação
                     $('#typing-indicator').removeClass('active');
 
                     if (response.status === 'success') {
+                        // Atualizar informações da conversa se for a primeira mensagem
+                        if (!conversaAtual && response.conversa_id) {
+                            conversaAtual = {
+                                id: response.conversa_id,
+                                hash_conversa: response.hash_conversa,
+                                titulo: 'Nova conversa'
+                            };
+                            atualizarInfoConversa();
+                            // Recarregar conversas na sidebar
+                            carregarConversasSidebar();
+                        }
+
                         // Adicionar a resposta do assistente
                         appendAssistantMessage(response.resposta);
                     } else {
@@ -148,6 +285,217 @@
                 }
             });
         });
+
+        // Função para carregar conversas na barra lateral
+        function carregarConversasSidebar() {
+            fetch('/api/conversas/sidebar')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        exibirConversasSidebar(data.conversas);
+                    } else {
+                        console.error('Erro ao carregar conversas:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro na requisição:', error);
+                });
+        }
+
+        // Função para exibir conversas na barra lateral
+        function exibirConversasSidebar(conversas) {
+            const container = document.getElementById('lista-conversas-sidebar');
+            container.innerHTML = '';
+
+            if (conversas.length === 0) {
+                container.innerHTML = '<div class="list-group-item text-muted text-center">Nenhuma conversa encontrada</div>';
+                return;
+            }
+
+            conversas.forEach(conversa => {
+                const item = document.createElement('div');
+                item.className = 'list-group-item list-group-item-action conversa-sidebar-item';
+                item.onclick = (e) => {
+                    // Evita abrir a conversa ao clicar na lixeira
+                    if (e.target.closest('.btn-delete-conversa')) return;
+                    carregarConversa(conversa.id);
+                };
+
+                // Destacar conversa ativa
+                if (conversaAtual && conversaAtual.id === conversa.id) {
+                    item.classList.add('active');
+                }
+
+                item.innerHTML = `
+                <div class="d-flex w-100 justify-content-between align-items-center">
+                    <h6 class="mb-1 text-truncate" style="max-width: 150px;">${conversa.titulo}</h6>
+                    <div class="d-flex align-items-center">
+                        <small class="text-muted mr-2">${conversa.tipo_conversa}</small>
+                        <button class="btn btn-sm btn-link text-danger btn-delete-conversa" title="Excluir conversa" style="display:none;padding:0 4px;">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+                <p class="mb-1 text-muted small">${conversa.total_mensagens} mensagens</p>
+                <small class="text-muted">${conversa.atualizada_em}</small>
+            `;
+
+                // Evento para deletar conversa
+                item.querySelector('.btn-delete-conversa').onclick = function(ev) {
+                    ev.stopPropagation();
+                    if (confirm('Tem certeza que deseja excluir esta conversa?')) {
+                        deletarConversa(conversa.id);
+                    }
+                };
+
+                // Mostrar botão de deletar ao passar mouse
+                item.onmouseenter = function() {
+                    const btn = item.querySelector('.btn-delete-conversa');
+                    if (btn) btn.style.display = 'inline-block';
+                };
+                item.onmouseleave = function() {
+                    const btn = item.querySelector('.btn-delete-conversa');
+                    if (btn) btn.style.display = 'none';
+                };
+
+                container.appendChild(item);
+            });
+        }
+
+        // Função para carregar uma conversa específica
+        function carregarConversa(conversaId) {
+            fetch(`/api/conversa?conversa_id=${conversaId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        conversaAtual = data.conversa;
+                        atualizarInfoConversa();
+
+                        // Limpar chat atual
+                        $('#chat-messages').html(`
+                        <!-- Mensagem de boas-vindas do assistente -->
+                        <div class="message message-assistant">
+                            <i class="icon fas fa-robot"></i>
+                            Olá, eu sou o chatbot <strong>AgenteVirtus</strong>. Estou aqui para te ajudar
+                            a entender seus dados. Todas as minhas respostas são baseadas nos dados que você me
+                            forneceu.
+                            Mas lembre-se, eu sou um chatbot e não tenho consciência própria, então minhas respostas
+                            podem
+                            não ser perfeitas. Sempre revise as respostas antes de tomar decisões importantes.
+                            <span class="message-time">Agora</span>
+                        </div>
+
+                        <!-- Indicador de digitação -->
+                        <div id="typing-indicator" class="typing-indicator">
+                            <em class="icon ni ni-user-fill me-2"></em> Assistente está digitando
+                            <span class="ms-2"></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                    `);
+
+                        // Carregar mensagens da conversa
+                        data.mensagens.forEach(msg => {
+                            if (msg.role === 'user') {
+                                appendUserMessage(msg.conteudo);
+                            } else if (msg.role === 'assistant') {
+                                appendAssistantMessage(msg.conteudo);
+                            }
+                        });
+
+                        // Atualizar sidebar
+                        carregarConversasSidebar();
+
+                        // Rolar para o final
+                        const chatMessages = document.getElementById('chat-messages');
+                        chatMessages.scrollTop = chatMessages.scrollHeight;
+                    } else {
+                        console.error('Erro ao carregar conversa:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro na requisição:', error);
+                });
+        }
+
+        // Função para atualizar informações da conversa na interface
+        function atualizarInfoConversa() {
+            if (conversaAtual) {
+                document.getElementById('conversa-titulo').textContent = conversaAtual.titulo;
+                document.getElementById('conversa-info').style.display = 'block';
+            }
+        }
+
+        // Função para criar nova conversa
+        function criarNovaConversa() {
+            document.getElementById('formNovaConversa').reset();
+            $('#modalNovaConversa').modal('show');
+        }
+
+        // Função para salvar nova conversa
+        function salvarNovaConversa() {
+            const formData = new FormData(document.getElementById('formNovaConversa'));
+
+            fetch('/api/conversa/criar', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        $('#modalNovaConversa').modal('hide');
+                        // Carregar a nova conversa
+                        carregarConversa(data.conversa.id);
+                    } else {
+                        alert('Erro ao criar conversa: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro na requisição:', error);
+                    alert('Erro ao criar conversa');
+                });
+        }
+
+        // Função para editar título da conversa
+        function editarTituloConversa() {
+            if (!conversaAtual) return;
+
+            document.getElementById('novo_titulo').value = conversaAtual.titulo;
+            $('#modalEditarTitulo').modal('show');
+        }
+
+        // Função para salvar novo título
+        function salvarNovoTitulo() {
+            if (!conversaAtual) return;
+
+            const novoTitulo = document.getElementById('novo_titulo').value.trim();
+            if (!novoTitulo) return;
+
+            const formData = new FormData();
+            formData.append('conversa_id', conversaAtual.id);
+            formData.append('titulo', novoTitulo);
+
+            fetch('/api/conversa/atualizar-titulo', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        conversaAtual.titulo = novoTitulo;
+                        atualizarInfoConversa();
+                        $('#modalEditarTitulo').modal('hide');
+                        // Recarregar sidebar
+                        carregarConversasSidebar();
+                    } else {
+                        alert('Erro ao atualizar título: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro na requisição:', error);
+                    alert('Erro ao atualizar título');
+                });
+        }
 
         // Função para adicionar mensagem do usuário
         function appendUserMessage(message) {
@@ -218,8 +566,88 @@
             $('#chat-messages').append(html);
             const chatMessages = document.getElementById('chat-messages');
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
 
+        // Função para deletar conversa
+        function deletarConversa(conversaId) {
+            const formData = new FormData();
+            formData.append('conversa_id', conversaId);
+            fetch('/api/conversa/deletar', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    // Se deletou a conversa atual, limpa o chat
+                    if (conversaAtual && conversaAtual.id == conversaId) {
+                        conversaAtual = null;
+                        $('#chat-messages').html(`
+                        <div class="message message-assistant">
+                            <i class="icon fas fa-robot"></i>
+                            Olá, eu sou o chatbot <strong>AgenteVirtus</strong>. Estou aqui para te ajudar
+                            a entender seus dados. Todas as minhas respostas são baseadas nos dados que você me
+                            forneceu.
+                            Mas lembre-se, eu sou um chatbot e não tenho consciência própria, então minhas respostas
+                            podem
+                            não ser perfeitas. Sempre revise as respostas antes de tomar decisões importantes.
+                            <span class="message-time">Agora</span>
+                        </div>
+                        <div id="typing-indicator" class="typing-indicator">
+                            <em class="icon ni ni-user-fill me-2"></em> Assistente está digitando
+                            <span class="ms-2"></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        `);
+                        atualizarInfoConversa();
+                    }
+                    carregarConversasSidebar();
+                } else {
+                    alert('Erro ao deletar conversa: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Erro ao deletar conversa');
+                console.error('Erro na requisição:', error);
+            });
         }
     });
+
+    // Função para copiar texto (mantida do código original)
+    function copyToClipboard(element) {
+        const text = element.getAttribute('data-text');
+        navigator.clipboard.writeText(text).then(function () {
+            // Feedback visual
+            const originalIcon = element.innerHTML;
+            element.innerHTML = '<i class="fas fa-check"></i>';
+            setTimeout(function () {
+                element.innerHTML = originalIcon;
+            }, 1000);
+        });
+    }
 </script>
+
+<style>
+    .list-group-item.active {
+        background-color: #007bff;
+        border-color: #007bff;
+        color: white;
+    }
+
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+        cursor: pointer;
+    }
+
+    .list-group-item.active:hover {
+        background-color: #0056b3;
+    }
+
+    .text-truncate {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+</style>
 {% endblock %}

@@ -1,0 +1,181 @@
+{% extends "layout/base.html" %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="card-title">Testar API de IA</h4>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Informações da API: {{ api.nome }}</h5>
+                            <div id="api-info" class="alert alert-info">
+                                <p>Endpoint: {{ api.endpoint }}</p>
+                                <p>Modelo: {{ api.modelo_chat }}</p>
+                                <p>API Key: {{ api.api_key[0:10] }}...</p>
+                            </div>
+                            
+                            <button id="btn-testar" class="btn btn-primary">
+                                <i class="fas fa-play"></i> Testar API
+                            </button>
+                            
+                            <button id="btn-testar-chatbot" class="btn btn-success ml-2">
+                                <i class="fas fa-comments"></i> Testar Chatbot
+                            </button>
+                            
+                            <div id="resultado-teste" class="mt-3" style="display: none;">
+                                <h6>Resultado do Teste:</h6>
+                                <div id="resultado-content" class="alert"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5>Logs de Debug</h5>
+                            <div id="logs" class="bg-dark text-light p-3" style="height: 400px; overflow-y: auto; font-family: monospace; font-size: 12px;">
+                                <div>Logs aparecerão aqui...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnTestar = document.getElementById('btn-testar');
+    const btnTestarChatbot = document.getElementById('btn-testar-chatbot');
+    const resultadoTeste = document.getElementById('resultado-teste');
+    const resultadoContent = document.getElementById('resultado-content');
+    const apiInfo = document.getElementById('api-info');
+    const logs = document.getElementById('logs');
+    
+    // Função para adicionar log
+    function addLog(message, type = 'info') {
+        const timestamp = new Date().toLocaleTimeString();
+        const logDiv = document.createElement('div');
+        logDiv.innerHTML = `<span class="text-muted">[${timestamp}]</span> <span class="text-${type === 'error' ? 'danger' : type === 'success' ? 'success' : 'info'}">${message}</span>`;
+        logs.appendChild(logDiv);
+        logs.scrollTop = logs.scrollHeight;
+    }
+    
+    // Função para testar a API
+    async function testarAPI() {
+        btnTestar.disabled = true;
+        btnTestar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testando...';
+        
+        addLog('Iniciando teste da API de IA...');
+        
+        try {
+            const response = await fetch('/api/testar-ia');
+            const resultado = await response.json();
+            
+            addLog(`Resposta recebida: Status ${response.status}`);
+            
+            if (resultado.status === 'success') {
+                addLog('✅ Teste bem-sucedido!', 'success');
+                resultadoContent.className = 'alert alert-success';
+                resultadoContent.innerHTML = `
+                    <h6>✅ API Funcionando!</h6>
+                    <p><strong>API:</strong> ${resultado.api_nome}</p>
+                    <p><strong>Endpoint:</strong> ${resultado.endpoint}</p>
+                    <p><strong>Modelo:</strong> ${resultado.modelo}</p>
+                    <hr>
+                    <h6>Resposta da IA:</h6>
+                    <p>${resultado.resposta}</p>
+                `;
+            } else {
+                addLog(`❌ Erro no teste: ${resultado.message}`, 'error');
+                resultadoContent.className = 'alert alert-danger';
+                resultadoContent.innerHTML = `
+                    <h6>❌ Erro no Teste</h6>
+                    <p><strong>Mensagem:</strong> ${resultado.message}</p>
+                    ${resultado.endpoint ? `<p><strong>Endpoint:</strong> ${resultado.endpoint}</p>` : ''}
+                    ${resultado.modelo ? `<p><strong>Modelo:</strong> ${resultado.modelo}</p>` : ''}
+                    ${resultado.api_nome ? `<p><strong>API:</strong> ${resultado.api_nome}</p>` : ''}
+                `;
+            }
+            
+            resultadoTeste.style.display = 'block';
+            
+        } catch (error) {
+            addLog(`❌ Erro na requisição: ${error.message}`, 'error');
+            resultadoContent.className = 'alert alert-danger';
+            resultadoContent.innerHTML = `
+                <h6>❌ Erro na Requisição</h6>
+                <p>${error.message}</p>
+            `;
+            resultadoTeste.style.display = 'block';
+        }
+        
+        btnTestar.disabled = false;
+        btnTestar.innerHTML = '<i class="fas fa-play"></i> Testar API';
+    }
+    
+    // Função para testar o chatbot
+    async function testarChatbot() {
+        btnTestarChatbot.disabled = true;
+        btnTestarChatbot.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testando...';
+        
+        addLog('Iniciando teste específico do chatbot...');
+        
+        try {
+            const formData = new FormData();
+            formData.append('mensagem', 'Olá, como você está?');
+            
+            const response = await fetch('/api/testar-chatbot', {
+                method: 'POST',
+                body: formData
+            });
+            const resultado = await response.json();
+            
+            addLog(`Resposta do chatbot: Status ${response.status}`);
+            
+            if (resultado.status === 'success') {
+                addLog('✅ Chatbot funcionando!', 'success');
+                resultadoContent.className = 'alert alert-success';
+                resultadoContent.innerHTML = `
+                    <h6>✅ Chatbot Funcionando!</h6>
+                    <p><strong>Mensagem enviada:</strong> Olá, como você está?</p>
+                    <hr>
+                    <h6>Resposta da IA:</h6>
+                    <p>${resultado.resposta}</p>
+                `;
+            } else {
+                addLog(`❌ Erro no chatbot: ${resultado.message}`, 'error');
+                resultadoContent.className = 'alert alert-danger';
+                resultadoContent.innerHTML = `
+                    <h6>❌ Erro no Chatbot</h6>
+                    <p><strong>Mensagem:</strong> ${resultado.message}</p>
+                `;
+            }
+            
+            resultadoTeste.style.display = 'block';
+            
+        } catch (error) {
+            addLog(`❌ Erro na requisição do chatbot: ${error.message}`, 'error');
+            resultadoContent.className = 'alert alert-danger';
+            resultadoContent.innerHTML = `
+                <h6>❌ Erro na Requisição do Chatbot</h6>
+                <p>${error.message}</p>
+            `;
+            resultadoTeste.style.display = 'block';
+        }
+        
+        btnTestarChatbot.disabled = false;
+        btnTestarChatbot.innerHTML = '<i class="fas fa-comments"></i> Testar Chatbot';
+    }
+    
+    // Event listeners para os botões
+    btnTestar.addEventListener('click', testarAPI);
+    btnTestarChatbot.addEventListener('click', testarChatbot);
+    
+    // Carregar informações da API
+    addLog('Página carregada. Clique em "Testar API" ou "Testar Chatbot" para verificar.');
+});
+</script>
+{% endblock %} 

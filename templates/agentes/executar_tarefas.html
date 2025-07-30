@@ -10,15 +10,23 @@
                 </div>
                 <div class="card-body">
                     {% if trigger %}
-                    <form action="/agentesinteligentes/executar_tarefas/{{ equipe.id }}" method="post" id="executarForm" enctype="multipart/form-data">
+                    <form action="/agentesinteligentes/executar_tarefas/{{ equipe.id }}" method="post" id="executarForm"
+                        enctype="multipart/form-data">
                         <input type="hidden" name="equipe_id" value="{{ equipe.id }}">
-
-                        {% for node in equipe.layout.nodes %}
+                        {% if layout and layout.nodes %}
+                        {% for node in layout.nodes %}
                         {% if node.type == 'trigger' %}
-                        {% if node.config.type == 'pdf' or node.config.type == 'audio' %}
+                        
+                        {% if node.config.type == 'pdf' or node.config.type == 'audio' or node.config.type == 'planilha' %}
                         <div class="mb-3">
                             <label for="arquivo" class="form-label">Selecione o arquivo.</label>
+                            {% if node.config.type == 'pdf' %}
                             <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".pdf" required>
+                            {% elif node.config.type == 'audio' %}
+                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".wav,.mp3,.m4a" required>
+                            {% elif node.config.type == 'planilha' %}
+                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".xlsx,.xls,.csv" required>
+                            {% endif %}
                         </div>
                         {% elif node.config.type == 'text' %}
                         <div class="mb-3">
@@ -28,6 +36,7 @@
                         {% endif %}
                         {% endif %}
                         {% endfor %}
+                        {% endif %}
 
                         <button type="submit" id="executarBtn" class="btn btn-primary">
                             <i class="fas fa-play"></i> Executar Tarefas
@@ -44,7 +53,8 @@
                 </div>
                 <div class="card-body">
                     <div class="accordion accordion-flush" id="accordionFlushExample">
-                        {% for node in equipe.layout.nodes %}
+                        {% if layout and layout.nodes %}
+                        {% for node in layout.nodes %}
                         {% if node.type == 'agent' %}
                         <div class="accordion-item">
                             <h2 class="accordion-header">
@@ -63,6 +73,7 @@
                         </div>
                         {% endif %}
                         {% endfor %}
+                        {% endif %}
                     </div>
                 </div>
             </div>

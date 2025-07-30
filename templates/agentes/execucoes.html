@@ -1,0 +1,164 @@
+{% extends 'layout/base.html' %}
+
+{% block main %}
+<div class="container-fluid">
+
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            {% if equipe %}
+                Execuções da Equipe: {{ equipe.nome }}
+            {% else %}
+                Todas as Execuções
+            {% endif %}
+        </h1>
+        <div>
+            {% if equipe %}
+                <a href="/agentesinteligentes/equipes" class="btn btn-sm btn-secondary shadow-sm">
+                    <i class="fas fa-arrow-left"></i> Voltar para Equipes
+                </a>
+            {% else %}
+                <a href="/agentesinteligentes/equipes" class="btn btn-sm btn-primary shadow-sm">
+                    <i class="fas fa-robot"></i> Ver Equipes
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Content Row -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-list"></i> 
+                {% if equipe %}
+                    Execuções da Equipe
+                {% else %}
+                    Todas as Execuções
+                {% endif %}
+            </h6>
+        </div>
+        <div class="card-body">
+            {% if execucoes %}
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Equipe</th>
+                                <th>Contexto</th>
+                                <th>Resposta</th>
+                                <th>Data</th>
+                                <th width="1%">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for execucao in execucoes %}
+                            <tr>
+                                <td>{{ execucao.id }}</td>
+                                <td>
+                                    {% if equipe %}
+                                        {{ equipe.nome }}
+                                    {% else %}
+                                        {{ execucao.equipe.nome }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if execucao.contexto %}
+                                        {% if "Agente" in execucao.contexto %}
+                                            <span class="badge badge-info">{{ execucao.contexto.split(' - ')[1] if ' - ' in execucao.contexto else execucao.contexto }}</span>
+                                        {% else %}
+                                            {{ execucao.contexto[:100] }}{% if execucao.contexto|length > 100 %}...{% endif %}
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Sem contexto</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if execucao.resposta %}
+                                        {% if "Execução completa" in execucao.resposta %}
+                                            <span class="badge badge-success">Resumo Final</span>
+                                        {% else %}
+                                            {{ execucao.resposta[:100] }}{% if execucao.resposta|length > 100 %}...{% endif %}
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-muted">Sem resposta</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ execucao.criado_em.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td nowrap>
+
+                                    {% if "Execução completa" in execucao.resposta %}
+                                    <a href="/agentesinteligentes/download_arquivo/{{ execucao.equipe_id }}/{{ execucao.id }}/txt" class="btn btn-primary btn-sm">   
+                                        <i class="fas fa-download"></i> Download
+                                    </a>
+                                    {% endif %}
+                                    
+                                    <a href="/agentesinteligentes/execucao/{{ execucao.id }}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-eye"></i> Ver
+                                    </a>
+                                    
+                                    <button type="button" class="btn btn-danger btn-sm btn-excluir"
+                                        data-execucao-id="{{ execucao.id }}" data-execucao-contexto="{{ execucao.contexto }}">
+                                        <i class="fas fa-trash"></i> Excluir
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <div class="text-center text-muted">
+                    <i class="fas fa-info-circle fa-3x mb-3"></i>
+                    <p>Nenhuma execução encontrada.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Adicionar event listeners para todos os botões de excluir
+        const botoesExcluir = document.querySelectorAll('.btn-excluir');
+
+        botoesExcluir.forEach(function (botao) {
+            botao.addEventListener('click', function () {
+                const execucaoId = this.getAttribute('data-execucao-id');
+                const contexto = this.getAttribute('data-execucao-contexto');
+
+                Swal.fire({
+                    title: 'Confirmar Exclusão',
+                    text: 'Tem certeza que deseja excluir esta execução?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Sim, excluir!',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Mostrar loading
+                        Swal.fire({
+                            title: 'Excluindo...',
+                            text: 'Aguarde enquanto excluímos a execução.',
+                            allowOutsideClick: false,
+                            didOpen: () => {
+                                Swal.showLoading();
+                            }
+                        });
+                        
+                        // Criar um formulário temporário para fazer a requisição POST
+                        const form = document.createElement('form');
+                        form.method = 'POST';
+                        form.action = '/agentesinteligentes/execucao/' + execucaoId + '/excluir';
+                        document.body.appendChild(form);
+                        form.submit();
+                    }
+                });
+            });
+        });
+    });
+</script>
+{% endblock %} 

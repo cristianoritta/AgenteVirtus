@@ -1,135 +1,116 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resultado - AgenteVirtus</title>
-    <link rel="stylesheet" href="/static/css/agentes_canva.css">
-    <style>
-        .resultado-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        .resultado-final {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 20px;
-            margin-bottom: 20px;
-        }
-        .resposta-item {
-            background: white;
-            border: 1px solid #e9ecef;
-            border-radius: 6px;
-            padding: 15px;
-            margin-bottom: 15px;
-        }
-        .resposta-header {
-            font-weight: bold;
-            color: #495057;
-            margin-bottom: 10px;
-        }
-        .resposta-content {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 4px;
-            white-space: pre-wrap;
-            font-family: monospace;
-        }
-        .download-link {
-            display: inline-block;
-            background: #007bff;
-            color: white;
-            padding: 8px 16px;
-            text-decoration: none;
-            border-radius: 4px;
-            margin-top: 10px;
-        }
-        .download-link:hover {
-            background: #0056b3;
-            color: white;
-        }
-        .voltar-btn {
-            background: #6c757d;
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 4px;
-            display: inline-block;
-            margin-top: 20px;
-        }
-        .voltar-btn:hover {
-            background: #545b62;
-            color: white;
-        }
-    </style>
-</head>
-<body>
-    <div class="resultado-container">
-        <h1>Resultado do Processamento</h1>
-        
-        <div class="resultado-final">
-            <h2>Resultado Final</h2>
-            <div class="resposta-content">{{ resultado }}</div>
-        </div>
+{% extends 'layout/base.html' %}
 
-        <h2>Detalhes do Processamento</h2>
-        {% for resposta in respostas %}
-        <div class="resposta-item">
-            <div class="resposta-header">
-                {% if resposta.node.type == 'agent' %}
-                    🤖 Agente: {{ resposta.node.config.role if resposta.node.config.role else 'Agente' }}
-                {% elif resposta.node.type == 'task' %}
-                    ⚙️ Tarefa: {{ resposta.node.config.description if resposta.node.config.description else 'Tarefa' }}
-                {% elif resposta.node.type == 'guardrail' %}
-                    🛡️ Guardrail: {{ resposta.node.config.name if resposta.node.config.name else 'Guardrail' }}
-                {% elif resposta.node.type == 'formatoSaida' %}
-                    📄 Formato de Saída: {{ resposta.node.config.type if resposta.node.config.type else 'Formato' }}
-                {% else %}
-                    📋 {{ resposta.node.type|title }}
-                {% endif %}
-            </div>
-            <div class="resposta-content">{{ resposta.resposta }}</div>
-            
-            {% if resposta.node.type == 'formatoSaida' and resposta.arquivo_download %}
-            <a href="#" onclick="downloadArquivo('{{ resposta.node.id }}')" class="download-link">
-                📥 Download do Arquivo
+{% block main %}
+<div class="container-fluid">
+
+    <!-- Page Heading -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Resultado do Processamento</h1>
+        <div>
+            <a href="/agentesinteligentes/equipes" class="btn btn-sm btn-secondary shadow-sm">
+                <i class="fas fa-arrow-left"></i> Voltar para Equipes
             </a>
-            {% endif %}
         </div>
-        {% endfor %}
-
-        <a href="/agentesinteligentes/equipes" class="voltar-btn">← Voltar para Equipes</a>
     </div>
 
-    <script>
-        function downloadArquivo(nodeId) {
-            // Obter o formato do nó a partir dos dados da página
-            const nodeData = getNodeData(nodeId);
-            if (nodeData && nodeData.formato) {
-                const url = `/agentesinteligentes/download_arquivo/{{ equipe.id }}/${nodeId}/${nodeData.formato}`;
-                window.open(url, '_blank');
-            } else {
-                alert('Formato não encontrado para este nó!');
-            }
+    <!-- Resultado Final -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-success">
+                <i class="fas fa-check-circle"></i> Resultado Final
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="bg-light p-3 rounded">
+                <pre class="mb-0" style="white-space: pre-wrap; font-family: 'Courier New', monospace;">{{ resultado }}</pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detalhes do Processamento -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-list"></i> Detalhes do Processamento
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                {% for resposta in respostas %}
+                <div class="col-12 mb-4">
+                    <div class="card border-left-primary shadow h-100">
+                        <div class="card-header py-3">
+                            <div class="d-flex align-items-center">
+                                {% if resposta.node.type == 'agent' %}
+                                    <i class="fas fa-robot text-primary me-2"></i>
+                                    <span class="font-weight-bold text-primary">Agente: {{ resposta.node.config.role if resposta.node.config.role else 'Agente' }}</span>
+                                {% elif resposta.node.type == 'task' %}
+                                    <i class="fas fa-cogs text-warning me-2"></i>
+                                    <span class="font-weight-bold text-warning">Tarefa: {{ resposta.node.config.description if resposta.node.config.description else 'Tarefa' }}</span>
+                                {% elif resposta.node.type == 'guardrail' %}
+                                    <i class="fas fa-shield-alt text-danger me-2"></i>
+                                    <span class="font-weight-bold text-danger">Guardrail: {{ resposta.node.config.name if resposta.node.config.name else 'Guardrail' }}</span>
+                                {% elif resposta.node.type == 'formatoSaida' %}
+                                    <i class="fas fa-file-alt text-success me-2"></i>
+                                    <span class="font-weight-bold text-success">Formato de Saída: {{ resposta.node.config.type if resposta.node.config.type else 'Formato' }}</span>
+                                {% else %}
+                                    <i class="fas fa-list-alt text-info me-2"></i>
+                                    <span class="font-weight-bold text-info">{{ resposta.node.type|title }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="bg-light p-3 rounded mb-3">
+                                <pre style="white-space: pre-wrap; font-family: 'Courier New', monospace; margin: 0;">{{ resposta.resposta }}</pre>
+                            </div>
+                            
+                            {% if resposta.node.type == 'formatoSaida' and resposta.arquivo_download %}
+                            <div class="text-center">
+                                <button onclick="downloadArquivo('{{ resposta.node.id }}')" class="btn btn-success">
+                                    <i class="fas fa-download"></i> Download do Arquivo
+                                </button>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function downloadArquivo(nodeId) {
+        // Obter o formato do nó a partir dos dados da página
+        const nodeData = getNodeData(nodeId);
+        if (nodeData && nodeData.formato) {
+            const url = `/agentesinteligentes/download_arquivo/{{ equipe.id }}/${nodeId}/${nodeData.formato}`;
+            window.open(url, '_blank');
+        } else {
+            Swal.fire({
+                title: 'Erro!',
+                text: 'Formato não encontrado para este nó!',
+                icon: 'error'
+            });
         }
-        
-        function getNodeData(nodeId) {
-            // Buscar os dados do nó na página
-            const nodeElements = document.querySelectorAll('.resposta-item');
-            for (let element of nodeElements) {
-                const header = element.querySelector('.resposta-header');
-                if (header && header.textContent.includes('Formato de Saída')) {
-                    // Extrair o formato do texto do header
-                    const formatoMatch = header.textContent.match(/Formato de Saída: (.+)/);
-                    if (formatoMatch) {
-                        return { formato: formatoMatch[1].toLowerCase() };
-                    }
+    }
+    
+    function getNodeData(nodeId) {
+        // Buscar os dados do nó na página
+        const nodeElements = document.querySelectorAll('.card-body');
+        for (let element of nodeElements) {
+            const header = element.parentElement.querySelector('.card-header');
+            if (header && header.textContent.includes('Formato de Saída')) {
+                // Extrair o formato do texto do header
+                const formatoMatch = header.textContent.match(/Formato de Saída: (.+)/);
+                if (formatoMatch) {
+                    return { formato: formatoMatch[1].toLowerCase() };
                 }
             }
-            return null;
         }
-    </script>
-</body>
-</html>
+        return null;
+    }
+</script>
+{% endblock %}
