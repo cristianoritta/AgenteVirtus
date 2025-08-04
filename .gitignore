@@ -1,3 +1,10 @@
+########################
+# Agente
+########################
+instance/
+instance/agente_virtus.db
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

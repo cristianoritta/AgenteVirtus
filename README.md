@@ -1,5 +1,4 @@
 # AgenteVirtus - Sistema de Agentes Inteligentes
-
 ## Descrição
 Sistema de agentes inteligentes desenvolvido em Flask para análise e processamento de dados.
 
@@ -65,18 +64,59 @@ AgenteVirtus/
 
 ## Configuração
 
-1. **Instalar dependências**:
+1. **Instalar o Python (preferencialmente até v. 3.11)**
+   Acesse http://python.org/downloads/windows/
+   (Versão 3.11.9: https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe)
+
+   Siga os passos da instalação.
+   *ATENÇÃO:* O python precisa ser colocado nas variáveis de ambiente do windows.
+
+   Junto com o python, será instalado o gerenciador de pacotes *pip*
+
+2. **Fazer download do código-fonte**
+   No material de Aula 01, Módulo 4, da Pós-Graduação em Inteligência Artificial para Agentes da Lei, 
+   você encontra o arquivo .zip com o código fonte. Verifique sempre a versão mais atualizada no grupo de alunos.
+
+2.1 **Descompacte em uma pasta do seu computador**
+
+2.2 **Acesse a pasta através do prompt de comando**
+   - Abra a pasta no Windows Explorer
+   - Na barra de endereço, digite *cmd*
+   - Vai abrir o prompt de comando do windows (a janela preta)
+
+2. **Criar um ambiente virtual**
+   Crie um ambiente virtual com o python, para evitar conflito de versões das bibliotecas, com outras aplicações que você tenha
+   ```bash
+   python -m venv venv
+   ```
+
+   Isso faz com que uma pasta *venv* seja criada, com todas as versões das bibliotecas.
+   No entanto, o ambiente virtual ainda não está ativo. Precisamos ativá-lo cada vez que for iniciar o programa
+
+   ```bash
+   venv\Scripts\activate.bat
+   ```
+
+   *Resultado:*
+   ```bash
+   C:\Users\Cristiano\Programação\AgenteVirtus>venv\Scripts\activate.bat
+   (venv) C:\Users\Cristiano\Programação\AgenteVirtus>
+   ```
+
+   A indicação **(venv)** no início da linha indica que o ambiente virtual está ativo.
+
+3. **Instalar dependências**:
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Configurar variáveis de ambiente**:
+4. **Configurar variáveis de ambiente**:
    Criar arquivo `.env` com:
    ```
    GROQ_API_KEY=sua_chave_api_aqui
    ```
 
-3. **Configurar o banco de dados**:
+5. **Configurar o banco de dados**:
    O sistema utiliza Flask-Migrate para gerenciar as migrações do banco de dados. Execute os seguintes comandos:
    ```bash
    # Inicializar as migrações (primeira vez)
@@ -92,7 +132,7 @@ AgenteVirtus/
    flask db downgrade
    ```
 
-4. **Executar a aplicação**:
+6. **Executar a aplicação**:
    ```bash
    python app.py
    ```
