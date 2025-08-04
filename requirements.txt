@@ -43,6 +43,7 @@ PyPDF2==3.0.1
 python-dateutil==2.9.0.post0
 python-docx==1.2.0
 python-dotenv==1.1.0
+python-telegram-bot==22.3
 pytz==2025.2
 requests==2.32.4
 six==1.17.0

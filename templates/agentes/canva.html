@@ -146,15 +146,36 @@
                 <span class="close-modal" onclick="closeTaskModal()">&times;</span>
             </div>
             <div id="taskConfigForm">
-                <div class="form-group">
-                    <label for="taskDescription">Descrição da Tarefa</label>
-                    <input type="text" id="taskDescription" placeholder="Descreva a tarefa">
-                </div>
-                <div class="form-group">
-                    <label for="taskExpectedOutput">Código python para a tarefa:</label>
-                    <textarea id="taskExpectedOutput" placeholder="Escreva aqui seu código python" rows="10"></textarea>
-                </div>
-                <button class="btn btn-primary" onclick="saveTaskConfig()">Salvar</button>
+                                    <div class="form-group">
+                        <label for="taskType">Tipo de Tarefa</label>
+                        <select id="taskType" class="form-control" onchange="handleTaskTypeChange()">
+                            <option value="python">Python</option>
+                            <option value="telegram">Telegram</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="taskDescription">Descrição da Tarefa</label>
+                        <input type="text" id="taskDescription" placeholder="Descreva a tarefa">
+                    </div>
+                    <div id="pythonTaskFields" class="task-type-fields">
+                        <div class="form-group">
+                            <label for="taskExpectedOutput">Código python para a tarefa:</label>
+                            <textarea id="taskExpectedOutput" placeholder="Escreva aqui seu código python" rows="10"></textarea>
+                        </div>
+                    </div>
+                    <div id="telegramTaskFields" class="task-type-fields" style="display: none;">
+                        <div class="form-group">
+                            <label for="telegramChatId">ID do Chat (opcional)</label>
+                            <input type="text" id="telegramChatId" placeholder="ID do chat do Telegram (deixe em branco para usar o padrão)">
+                            <small class="form-text text-muted">Se não fornecido, será usado o ID configurado no arquivo .env</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="telegramTemplate">Template da Mensagem</label>
+                            <textarea id="telegramTemplate" placeholder="Template da mensagem a ser enviada. Use {texto} para inserir o conteúdo processado." rows="5"></textarea>
+                            <small class="form-text text-muted">Use {texto} para inserir o conteúdo processado pelo agente</small>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="saveTaskConfig()">Salvar</button>
             </div>
         </div>
     </div>
@@ -823,20 +844,57 @@
                 closeAgentModal();
             }
 
+            window.handleTaskTypeChange = function() {
+                const taskType = document.getElementById('taskType').value;
+                const pythonFields = document.getElementById('pythonTaskFields');
+                const telegramFields = document.getElementById('telegramTaskFields');
+
+                if (taskType === 'python') {
+                    pythonFields.style.display = 'block';
+                    telegramFields.style.display = 'none';
+                } else if (taskType === 'telegram') {
+                    pythonFields.style.display = 'none';
+                    telegramFields.style.display = 'block';
+                }
+            }
+
             window.saveTaskConfig = function () {
                 if (!currentNodeBeingConfigured) return;
 
+                const taskType = document.getElementById('taskType').value;
                 const description = document.getElementById('taskDescription').value;
-                const expectedOutput = document.getElementById('taskExpectedOutput').value;
 
-                if (!description || !expectedOutput) {
-                    alert('Por favor, preencha todos os campos');
+                if (!description) {
+                    alert('Por favor, preencha a descrição da tarefa');
                     return;
                 }
 
                 const node = nodes.find(n => n.id === currentNodeBeingConfigured);
                 if (node) {
-                    node.config = { description, expectedOutput };
+                    let config = { 
+                        type: taskType,
+                        description 
+                    };
+
+                    if (taskType === 'python') {
+                        const expectedOutput = document.getElementById('taskExpectedOutput').value;
+                        if (!expectedOutput) {
+                            alert('Por favor, preencha o código Python');
+                            return;
+                        }
+                        config.expectedOutput = expectedOutput;
+                    } else if (taskType === 'telegram') {
+                        const chatId = document.getElementById('telegramChatId').value;
+                        const template = document.getElementById('telegramTemplate').value;
+                        if (!template) {
+                            alert('Por favor, preencha o template da mensagem');
+                            return;
+                        }
+                        config.chatId = chatId;
+                        config.template = template;
+                    }
+
+                    node.config = config;
                     updateNodeDetails(node.id);
                 }
 
@@ -997,12 +1055,28 @@
                         </div>
                     `;
                 } else if (node.type === 'task' && node.config.description) {
-                    titleElement.textContent = 'Tarefa';
-                    detailsElement.innerHTML = `
+                    const taskType = node.config.type || 'python';
+                    titleElement.textContent = taskType === 'telegram' ? 'Tarefa - Telegram' : 'Tarefa - Python';
+                    
+                    let detailsHtml = `
                         <div class="node-detail-item">
                             <small>Descrição:</small> ${node.config.description.substring(0, 50)}...
-                        </div>
-                    `;
+                        </div>`;
+
+                    if (taskType === 'telegram') {
+                        detailsHtml += `
+                            <div class="node-detail-item">
+                                <small>Template:</small> ${node.config.template.substring(0, 50)}...
+                            </div>`;
+                        if (node.config.chatId) {
+                            detailsHtml += `
+                                <div class="node-detail-item">
+                                    <small>Chat ID:</small> ${node.config.chatId}
+                                </div>`;
+                        }
+                    }
+                    
+                    detailsElement.innerHTML = detailsHtml;
                 } else if (node.type === 'trigger' && node.config.type) {
                     const triggerTypeLabels = {
                         'pdf': 'PDF',
@@ -1071,8 +1145,20 @@
                     document.getElementById('agentDelegation').checked = node.config.allowDelegation !== false;
                     document.getElementById('agentModal').style.display = 'block';
                 } else if (node.type === 'task') {
+                    const taskType = node.config.type || 'python';
+                    document.getElementById('taskType').value = taskType;
                     document.getElementById('taskDescription').value = node.config.description || '';
-                    document.getElementById('taskExpectedOutput').value = node.config.expectedOutput || '';
+                    
+                    // Atualiza a visibilidade dos campos
+                    handleTaskTypeChange();
+                    
+                    if (taskType === 'python') {
+                        document.getElementById('taskExpectedOutput').value = node.config.expectedOutput || '';
+                    } else if (taskType === 'telegram') {
+                        document.getElementById('telegramChatId').value = node.config.chatId || '';
+                        document.getElementById('telegramTemplate').value = node.config.template || '';
+                    }
+                    
                     document.getElementById('taskModal').style.display = 'block';
                 } else if (node.type === 'trigger') {
                     document.getElementById('triggerType').value = node.config.type || 'pdf';

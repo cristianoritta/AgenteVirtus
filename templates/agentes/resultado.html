@@ -22,7 +22,15 @@
         </div>
         <div class="card-body">
             <div class="bg-light p-3 rounded">
-                <pre class="mb-0" style="white-space: pre-wrap; font-family: 'Courier New', monospace;">{{ resultado }}</pre>
+                <div class="d-flex justify-content-end mb-2">
+                    <button onclick="copiarTexto('resultado-final')" class="btn btn-sm btn-primary me-2">
+                        <i class="fas fa-copy"></i> Copiar
+                    </button>
+                    <button onclick="downloadTexto('{{ resultado }}')" class="btn btn-sm btn-success">
+                        <i class="fas fa-download"></i> Download
+                    </button>
+                </div>
+                <pre id="resultado-final" class="mb-0" style="white-space: pre-wrap; font-family: 'Courier New', monospace;">{{ resultado }}</pre>
             </div>
         </div>
     </div>
@@ -111,6 +119,46 @@
             }
         }
         return null;
+    }
+
+    function copiarTexto(elementId) {
+        const elemento = document.getElementById(elementId);
+        const texto = elemento.textContent;
+        
+        navigator.clipboard.writeText(texto).then(() => {
+            // Mostrar feedback visual
+            Swal.fire({
+                title: 'Copiado!',
+                text: 'Texto copiado para a área de transferência',
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        }).catch(err => {
+            console.error('Erro ao copiar texto:', err);
+            Swal.fire({
+                title: 'Erro!',
+                text: 'Não foi possível copiar o texto',
+                icon: 'error'
+            });
+        });
+    }
+
+    function downloadTexto(texto) {
+        // Criar um blob com o texto
+        const blob = new Blob([texto], { type: 'text/plain' });
+        const url = window.URL.createObjectURL(blob);
+        
+        // Criar um link temporário e clicar nele
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `resultado_${new Date().toISOString().slice(0,19).replace(/[:-]/g, '')}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Limpar
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
     }
 </script>
 {% endblock %}

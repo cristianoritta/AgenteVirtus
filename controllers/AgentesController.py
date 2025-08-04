@@ -152,6 +152,8 @@ class AgentesController:
                 Nós que contém arquivos
                 """
                 arquivo = request.files['arquivo']
+                print(arquivo)
+                print(tipo_equipe)  
 
                 if tipo_equipe == 'pdf':
                     # Ler o conteúdo do arquivo diretamente do objeto FileStorage
@@ -180,6 +182,7 @@ class AgentesController:
                     try:
                         # Obter a extensão do arquivo
                         filename = arquivo.filename.lower()
+                        print(filename)
                         
                         if filename.endswith('.csv'):
                             # Ler arquivo CSV
@@ -188,7 +191,10 @@ class AgentesController:
                             # Ler arquivo Excel
                             df = pd.read_excel(arquivo)
                         else:
+                            print("Formato de arquivo não suportado")
                             raise ValueError("Formato de arquivo não suportado")
+                        
+                        print(df)
                         
                         # Converter DataFrame para texto estruturado
                         texto += f"""
@@ -209,7 +215,51 @@ Colunas: {', '.join(df.columns.tolist())}
 """
                         
                     except Exception as e:
-                        texto += f"Erro ao processar planilha: {str(e)}"
+                        print(f"Erro ao processar planilha: {str(e)}")
+                        texto = ""
+                        
+                        if filename.endswith('.csv'):
+                            print("Tentando ler CSV linha a linha...")
+                            try:
+                                # Primeiro, vamos tentar ler usando csv.reader
+                                arquivo.stream.seek(0)  # Garantir que estamos no início do arquivo
+                                arquivo_content = arquivo.stream.read().decode('utf-8-sig')  # utf-8-sig para lidar com BOM
+                                import csv
+                                from io import StringIO
+
+                                # Criar um buffer de texto
+                                csvfile = StringIO(arquivo_content)
+                                
+                                # Usar o csv.reader para lidar corretamente com as células
+                                reader = csv.reader(csvfile)
+                                
+                                # Ler o cabeçalho
+                                headers = next(reader)
+                                print(f"Cabeçalho encontrado: {headers}")
+                                
+                                texto += "### DADOS DA PLANILHA ###\n"
+                                texto += f"Colunas encontradas: {', '.join(headers)}\n\n"
+                                texto += "### CONTEÚDO ###\n"
+                                
+                                # Ler as linhas de dados
+                                for row in reader:
+                                    # Limpar células vazias e espaços
+                                    row = [cell.strip() for cell in row if cell.strip()]
+                                    if row:  # Se a linha não estiver vazia
+                                        print(f"Linha lida: {row}")
+                                        texto += " | ".join(row) + "\n"
+                                
+                                arquivo.stream.seek(0)  # Resetar o ponteiro do arquivo
+                                
+                            except Exception as csv_error:
+                                print(f"Erro ao ler CSV linha a linha: {str(csv_error)}")
+                                texto += f"\nErro ao processar CSV: {str(csv_error)}\n"
+                        
+                        else:
+                            texto += f"\nErro ao processar planilha: {str(e)}\n"
+                    
+                    
+                    print(texto)
 
             ########################################################################################
             # PROCESSA TODA A TAREFA, EM SEQUENCIA BASEADA NAS CONEXÕES
@@ -344,11 +394,153 @@ Colunas: {', '.join(df.columns.tolist())}
                         'node': node
                     })
 
+                    # Procurar e executar tarefas conectadas a este agente
+                    for connection in layout['connections']:
+                        if connection['startNode'] == node['id'] and connection['startPort'] == 'tasks':
+                            # Encontrar o nó da tarefa
+                            task_node = None
+                            for n in layout['nodes']:
+                                if n['id'] == connection['endNode'] and n['type'] == 'task':
+                                    task_node = n
+                                    break
+
+                            if task_node:
+                                print(f"DEBUG - Executando tarefa {task_node['id']} conectada ao agente {node['id']}")
+                                # Processar a tarefa usando a última resposta como entrada
+                                ultima_resposta = respostas[-1]['resposta']
+
+                                # Se for uma tupla (Response, status_code), extrair o conteúdo
+                                if isinstance(ultima_resposta, tuple):
+                                    if hasattr(ultima_resposta[0], 'get_data'):
+                                        texto_entrada = ultima_resposta[0].get_data(as_text=True)
+                                    else:
+                                        texto_entrada = str(ultima_resposta[0])
+                                else:
+                                    texto_entrada = str(ultima_resposta)
+
+                                # Verificar o tipo de tarefa
+                                task_type = task_node['config'].get('type', 'python')
+                                resultado_task = None
+                                contexto_task = None
+
+                                try:
+                                    if task_type == 'python':
+                                        # Obter o código Python da configuração da task
+                                        codigo_python = task_node['config'].get('expectedOutput')
+                                        if not codigo_python:
+                                            raise ValueError("Código Python não fornecido para tarefa do tipo Python")
+
+                                        # Preparar o código completo envolvendo em uma função
+                                        codigo_completo = f"""
+def executar_codigo(data):
+    {codigo_python}
+
+resultado = executar_codigo('''{texto_entrada}''')
+"""
+                                        # Criar o contexto da task
+                                        contexto_task = f"""### TAREFA PYTHON ###
+                                        <entrada>
+                                        {texto_entrada}
+                                        </entrada>
+
+                                        <codigo>
+                                        {codigo_python}
+                                        </codigo>"""
+
+                                        print(f"DEBUG - Código a ser executado:\n{codigo_completo}")
+
+                                        # Executar o código
+                                        local_vars = {}
+                                        exec(codigo_completo, globals(), local_vars)
+                                        resultado_bruto = local_vars.get('resultado', 'Código executado com sucesso')
+                                        
+                                        # Se o resultado for uma string representando um dicionário, limpar
+                                        if isinstance(resultado_bruto, str) and resultado_bruto.startswith('{') and resultado_bruto.endswith('}'):
+                                            # Remove as chaves e aspas simples do início e fim
+                                            resultado_task = resultado_bruto.strip('{}').strip("'")
+                                        else:
+                                            resultado_task = str(resultado_bruto)
+
+                                    elif task_type == 'telegram':
+                                        from utils.telegram import enviar_mensagem_telegram
+
+                                        # Obter configurações do Telegram
+                                        template = task_node['config'].get('template')
+                                        chat_id = task_node['config'].get('chatId')
+
+                                        if not template:
+                                            raise ValueError("Template não fornecido para tarefa do tipo Telegram")
+
+                                        # Substituir {texto} no template
+                                        mensagem = template.replace('{texto}', texto_entrada)
+
+                                        # Criar o contexto da task
+                                        contexto_task = f"""### TAREFA TELEGRAM ###
+                                        <entrada>
+                                        {texto_entrada}
+                                        </entrada>
+
+                                        <template>
+                                        {template}
+                                        </template>
+
+                                        <chat_id>
+                                        {chat_id if chat_id else 'Usando chat_id padrão do .env'}
+                                        </chat_id>"""
+
+                                        print(f"DEBUG - Enviando mensagem via Telegram: {mensagem[:200]}...")
+                                        
+                                        # Enviar mensagem
+                                        sucesso = enviar_mensagem_telegram(mensagem, chat_id)
+                                        resultado_task = "Mensagem enviada com sucesso!" if sucesso else "Erro ao enviar mensagem"
+                                        print(f"DEBUG - Resultado do envio: {resultado_task}")
+
+                                    else:
+                                        raise ValueError(f"Tipo de tarefa não suportado: {task_type}")
+
+                                except Exception as e:
+                                    erro = f"Erro ao executar tarefa {task_type}: {str(e)}"
+                                    print(f"DEBUG - {erro}")
+                                    
+                                    if task_type == 'telegram':
+                                        # Em caso de erro, tentar enviar mensagem de erro via Telegram
+                                        try:
+                                            from utils.telegram import enviar_mensagem_telegram
+                                            mensagem_erro = f"""⚠️ Erro na Execução da Tarefa
+
+<b>Tipo de Tarefa:</b> {task_type}
+<b>Erro:</b> {str(e)}
+
+<i>Este é um aviso automático do AgenteVirtus</i>"""
+                                            enviar_mensagem_telegram(mensagem_erro)
+                                        except Exception as e2:
+                                            print(f"DEBUG - Erro ao enviar mensagem de erro via Telegram: {str(e2)}")
+                                    
+                                    resultado_task = erro
+
+                                # Criar registro de execução para esta task
+                                execucao_task = ExecucaoEquipe(
+                                    equipe_id=equipe_id,
+                                    sprint=execucao.sprint,
+                                    contexto=contexto_task,
+                                    resposta=str(resultado_task)
+                                )
+                                db.session.add(execucao_task)
+                                db.session.commit()
+
+                                # Adicionar o resultado ao array de respostas
+                                respostas.append({
+                                    'resposta': resultado_task,
+                                    'node': task_node
+                                })
+
+                                # Atualizar o texto para o próximo agente/task
+                                texto += '\n\n ########' + str(resultado_task)
 
                 ########################################################################################
-                # TAREFA
+                # TAREFA (Tarefas não conectadas a agentes)
                 ########################################################################################
-                if node['type'] == 'task':
+                if node['type'] == 'task' and not any(c['startPort'] == 'tasks' and c['endNode'] == node['id'] for c in layout['connections']):
                     # Obter a última resposta e garantir que seja uma string
                     ultima_resposta = respostas[-1]['resposta']
 
@@ -361,27 +553,92 @@ Colunas: {', '.join(df.columns.tolist())}
                     else:
                         texto_entrada = str(ultima_resposta)
 
-                    # Obter o código Python da configuração da task
-                    codigo_python = node['config']['expectedOutput']
-                    texto_entrada = '00008323520184013202'  # Valor fixo para teste
+                    # Verificar o tipo de tarefa
+                    task_type = node['config'].get('type', 'python')
+                    resultado_task = None
+                    contexto_task = None
 
-                    # Preparar o código completo
-                    codigo_completo = codigo_python.replace('{texto_entrada}', texto_entrada)
+                    try:
+                        if task_type == 'python':
+                            # Obter o código Python da configuração da task
+                            codigo_python = node['config'].get('expectedOutput')
+                            if not codigo_python:
+                                raise ValueError("Código Python não fornecido para tarefa do tipo Python")
 
-                    # Criar o contexto da task
-                    contexto_task = f"""### TAREFA PYTHON ###
-                    <entrada>
-                    {texto_entrada}
-                    </entrada>
+                            # Preparar o código completo
+                            codigo_completo = codigo_python.replace('{texto_entrada}', texto_entrada)
 
-                    <codigo>
-                    {codigo_python}
-                    </codigo>"""
+                            # Criar o contexto da task
+                            contexto_task = f"""### TAREFA PYTHON ###
+                            <entrada>
+                            {texto_entrada}
+                            </entrada>
 
-                    # Executar o código
-                    local_vars = {}
-                    exec(codigo_completo, globals(), local_vars)
-                    resultado_task = local_vars.get('resultado', 'Código executado com sucesso')
+                            <codigo>
+                            {codigo_python}
+                            </codigo>"""
+
+                            # Executar o código
+                            local_vars = {}
+                            exec(codigo_completo, globals(), local_vars)
+                            resultado_task = local_vars.get('resultado', 'Código executado com sucesso')
+
+                        elif task_type == 'telegram':
+                            from utils.telegram import enviar_mensagem_telegram
+
+                            # Obter configurações do Telegram
+                            template = node['config'].get('template')
+                            chat_id = node['config'].get('chatId')
+
+                            if not template:
+                                raise ValueError("Template não fornecido para tarefa do tipo Telegram")
+
+                            # Substituir {texto} no template
+                            mensagem = template.replace('{texto}', texto_entrada)
+
+                            # Criar o contexto da task
+                            contexto_task = f"""### TAREFA TELEGRAM ###
+                            <entrada>
+                            {texto_entrada}
+                            </entrada>
+
+                            <template>
+                            {template}
+                            </template>
+
+                            <chat_id>
+                            {chat_id if chat_id else 'Usando chat_id padrão do .env'}
+                            </chat_id>"""
+
+                            print(f"DEBUG - Enviando mensagem via Telegram: {mensagem[:200]}...")
+                            
+                            # Enviar mensagem
+                            sucesso = enviar_mensagem_telegram(mensagem, chat_id)
+                            resultado_task = "Mensagem enviada com sucesso!" if sucesso else "Erro ao enviar mensagem"
+                            print(f"DEBUG - Resultado do envio: {resultado_task}")
+
+                        else:
+                            raise ValueError(f"Tipo de tarefa não suportado: {task_type}")
+
+                    except Exception as e:
+                        erro = f"Erro ao executar tarefa {task_type}: {str(e)}"
+                        print(f"DEBUG - {erro}")
+                        
+                        if task_type == 'telegram':
+                            # Em caso de erro, tentar enviar mensagem de erro via Telegram
+                            try:
+                                from utils.telegram import enviar_mensagem_telegram
+                                mensagem_erro = f"""⚠️ Erro na Execução da Tarefa
+
+<b>Tipo de Tarefa:</b> {task_type}
+<b>Erro:</b> {str(e)}
+
+<i>Este é um aviso automático do AgenteVirtus</i>"""
+                                enviar_mensagem_telegram(mensagem_erro)
+                            except Exception as e2:
+                                print(f"DEBUG - Erro ao enviar mensagem de erro via Telegram: {str(e2)}")
+                        
+                        resultado_task = erro
 
                     # Criar registro de execução para esta task
                     execucao_task = ExecucaoEquipe(
@@ -506,17 +763,24 @@ Colunas: {', '.join(df.columns.tolist())}
                     db.session.add(execucao_formato)
                     db.session.commit()
 
-                    # Criar resposta para download
-                    response = make_response(arquivo_output.getvalue())
-                    response.headers['Content-Disposition'] = f'attachment; filename={nome_arquivo_final}'
-                    response.headers['Content-Type'] = content_type
+                    # Se for texto simples, apenas adicionar o conteúdo como resposta
+                    if content_type == "text/plain":
+                        respostas.append({
+                            'resposta': arquivo_output.getvalue().decode('utf-8'),
+                            'node': node
+                        })
+                    else:
+                        # Para outros tipos de arquivo, criar resposta para download
+                        response = make_response(arquivo_output.getvalue())
+                        response.headers['Content-Disposition'] = f'attachment; filename={nome_arquivo_final}'
+                        response.headers['Content-Type'] = content_type
 
-                    # Adicionar à lista de respostas
-                    respostas.append({
-                        'resposta': f"Arquivo gerado: {nome_arquivo_final}",
-                        'node': node,
-                        'arquivo_download': response
-                    })
+                        # Adicionar à lista de respostas
+                        respostas.append({
+                            'resposta': f"Arquivo gerado: {nome_arquivo_final}",
+                            'node': node,
+                            'arquivo_download': response
+                        })
 
                     # Atualizar o texto para o próximo agente/task
                     texto += f'\n\n<node_{node["id"]}>Arquivo gerado: {nome_arquivo_final}</node_{node["id"]}>'
