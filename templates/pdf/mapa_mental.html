@@ -1,0 +1,175 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Mapa Mental - AgenteVirtus{% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">
+                        <i class="fas fa-sitemap text-orange me-2"></i>
+                        Crie um mapa mental do conteúdo com IA
+                    </h5>
+                    
+                    <form id="mapaMentalForm" enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <label for="pdf" class="form-label">Selecione o arquivo PDF</label>
+                            <input type="file" class="form-control" id="pdf" name="pdf" accept=".pdf" required>
+                            <div class="form-text">Selecione um arquivo PDF para criar um mapa mental do conteúdo.</div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-orange" id="btnCriar">
+                                <i class="fas fa-sitemap me-1"></i>Criar Mapa Mental
+                            </button>
+                            <a href="/pdf" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Voltar
+                            </a>
+                        </div>
+                    </form>
+
+                    <div id="loading" class="text-center mt-4" style="display: none;">
+                        <div class="spinner-border text-orange" role="status">
+                            <span class="visually-hidden">Processando...</span>
+                        </div>
+                        <p class="mt-2">Criando mapa mental...</p>
+                    </div>
+
+                    <div id="result" class="mt-4" style="display: none;">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-sitemap me-2"></i>
+                                    Mapa Mental Gerado
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="text-muted">Mapa mental do conteúdo</span>
+                                    <button class="btn btn-sm btn-outline-primary" id="btnCopiar">
+                                        <i class="fas fa-copy me-1"></i>Copiar
+                                    </button>
+                                </div>
+                                <div id="mapaMentalGerado" class="border rounded p-3 bg-light" style="max-height: 500px; overflow-y: auto; white-space: pre-wrap; line-height: 1.6;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="error" class="mt-4" style="display: none;">
+                        <div class="alert alert-danger">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Erro ao criar mapa mental</h6>
+                            <p id="errorMessage" class="mb-0"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.btn-orange {
+    background-color: #fd7e14;
+    border-color: #fd7e14;
+    color: white;
+}
+
+.btn-orange:hover {
+    background-color: #e8690b;
+    border-color: #e8690b;
+    color: white;
+}
+
+.text-orange {
+    color: #fd7e14 !important;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('pdf');
+    const form = document.getElementById('mapaMentalForm');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const error = document.getElementById('error');
+    const errorMessage = document.getElementById('errorMessage');
+    const btnCriar = document.getElementById('btnCriar');
+    const btnCopiar = document.getElementById('btnCopiar');
+    const mapaMentalGerado = document.getElementById('mapaMentalGerado');
+
+    // Enviar formulário
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('Por favor, selecione um arquivo PDF.');
+            return;
+        }
+
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            alert('Por favor, selecione um arquivo PDF.');
+            return;
+        }
+
+        // Mostrar loading
+        loading.style.display = 'block';
+        result.style.display = 'none';
+        error.style.display = 'none';
+        btnCriar.disabled = true;
+
+        // Criar FormData
+        const formData = new FormData();
+        formData.append('pdf', file);
+
+        // Enviar requisição
+        fetch('/pdf/mapa-mental', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            loading.style.display = 'none';
+            btnCriar.disabled = false;
+
+            if (data.status === 'success') {
+                mapaMentalGerado.innerHTML = data.response || data.message || 'Mapa mental gerado com sucesso!';
+                result.style.display = 'block';
+            } else {
+                errorMessage.textContent = data.message || 'Erro ao criar mapa mental';
+                error.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            errorMessage.textContent = 'Erro ao processar requisição: ' + err.message;
+            btnCriar.disabled = false;
+        });
+    });
+
+    // Copiar mapa mental
+    btnCopiar.addEventListener('click', function() {
+        const texto = mapaMentalGerado.textContent;
+        navigator.clipboard.writeText(texto).then(function() {
+            // Mostrar feedback
+            const originalText = btnCopiar.innerHTML;
+            btnCopiar.innerHTML = '<i class="fas fa-check me-1"></i>Copiado!';
+            btnCopiar.classList.remove('btn-outline-primary');
+            btnCopiar.classList.add('btn-success');
+            
+            setTimeout(() => {
+                btnCopiar.innerHTML = originalText;
+                btnCopiar.classList.remove('btn-success');
+                btnCopiar.classList.add('btn-outline-primary');
+            }, 2000);
+        }).catch(function(err) {
+            console.error('Erro ao copiar texto: ', err);
+            alert('Erro ao copiar texto para a área de transferência.');
+        });
+    });
+});
+</script>
+{% endblock %} 

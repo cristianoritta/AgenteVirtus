@@ -33,6 +33,10 @@ class ApiIa(db.Model):
     ativo = db.Column(db.Boolean, default=True)
 
 
+###########################################################################################
+# SISTEMA DE EQUIPES INTELIGENTES
+###########################################################################################
+
 # Modelos para Agentes Inteligentes (IA)
 class EquipeInteligente(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -65,6 +69,7 @@ class TemplateArquivo(db.Model):
 class ExecucaoEquipe(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     equipe_id = db.Column(db.Integer, db.ForeignKey('equipe_inteligente.id'), nullable=False)
+    sprint = db.Column(db.Integer, nullable=True)
     contexto = db.Column(db.Text, nullable=True)
     resposta = db.Column(db.Text, nullable=True)
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)

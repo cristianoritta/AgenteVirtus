@@ -902,3 +902,209 @@ def testar_api_ia():
             'api_nome': api.nome if 'api' in locals() else 'Desconhecida',
             'endpoint': api.endpoint if 'api' in locals() else 'Desconhecido'
         }
+
+def groq_visao_openai_requests(api_ia, prompt, imagens_base64, conversa):
+    """
+    Função específica para processamento de imagens usando OpenAI/Groq
+    """
+    try:
+        # Construir a URL completa
+        base_url = api_ia.endpoint.rstrip("/")
+        if not base_url.endswith("/v1"):
+            base_url += "/v1"
+        
+        url = f"{base_url}/chat/completions"
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {api_ia.api_key}'
+        }
+        
+        # Preparar mensagens com imagens
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "text",
+                        "text": prompt
+                    }
+                ]
+            }
+        ]
+        
+        # Adicionar imagens ao conteúdo
+        for i, img_base64 in enumerate(imagens_base64):
+            messages[0]["content"].append({
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/jpeg;base64,{img_base64}"
+                }
+            })
+        
+        payload = {
+            "model": api_ia.modelo_visao or api_ia.modelo_chat,  # Usar modelo_visao se disponível
+            "messages": messages,
+            "max_tokens": 4000
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'choices' in data and len(data['choices']) > 0:
+                resposta_ia = data['choices'][0]['message']['content']
+                
+                # Adicionar resposta da IA à conversa
+                ConversaService.adicionar_mensagem(conversa.id, 'assistant', resposta_ia)
+                
+                return jsonify({
+                    'status': 'success',
+                    'resultado': {
+                        'choices': [{
+                            'message': {
+                                'content': resposta_ia
+                            }
+                        }]
+                    },
+                    'resposta': resposta_ia,
+                    'conversa_id': conversa.id,
+                    'hash_conversa': conversa.hash_conversa
+                }), 200
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Resposta da API não contém dados válidos'
+                }), 500
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': f'Erro na API: {response.status_code} - {response.text}'
+            }), response.status_code
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Erro inesperado: {str(e)}'
+        }), 500
+
+
+def groq_visao_gemini(api_ia, prompt, imagens_base64, conversa):
+    """
+    Função específica para processamento de imagens usando Gemini
+    """
+    try:
+        # Construir a URL completa para Gemini
+        url = f"{api_ia.endpoint}/models/{api_ia.modelo_visao or api_ia.modelo_chat}:generateContent"
+        
+        headers = {
+            'Content-Type': 'application/json',
+            'X-goog-api-key': api_ia.api_key
+        }
+        
+        # Preparar conteúdo com imagens
+        parts = [
+            {
+                "text": prompt
+            }
+        ]
+        
+        # Adicionar imagens
+        for img_base64 in imagens_base64:
+            parts.append({
+                "inline_data": {
+                    "mime_type": "image/jpeg",
+                    "data": img_base64
+                }
+            })
+        
+        payload = {
+            "contents": [
+                {
+                    "parts": parts
+                }
+            ]
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=60)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'candidates' in data and len(data['candidates']) > 0:
+                resposta_ia = data['candidates'][0]['content']['parts'][0]['text']
+                
+                # Adicionar resposta da IA à conversa
+                ConversaService.adicionar_mensagem(conversa.id, 'assistant', resposta_ia)
+                
+                return jsonify({
+                    'status': 'success',
+                    'resultado': {
+                        'choices': [{
+                            'message': {
+                                'content': resposta_ia
+                            }
+                        }]
+                    },
+                    'resposta': resposta_ia,
+                    'conversa_id': conversa.id,
+                    'hash_conversa': conversa.hash_conversa
+                }), 200
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Resposta da API não contém dados válidos'
+                }), 500
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': f'Erro na API: {response.status_code} - {response.text}'
+            }), response.status_code
+            
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Erro inesperado: {str(e)}'
+        }), 500
+
+
+def groq_visao(prompt, imagens_base64, conversa_id=None, hash_conversa=None):
+    """
+    Função principal para processamento de imagens com IA
+    """
+    # Fazer requisição para a API ativa
+    api_ia = api_ativa()
+    
+    if not api_ia:
+        return jsonify({
+            'status': 'error',
+            'message': 'Nenhuma API de IA ativa encontrada'
+        }), 500
+    
+    try:
+        # Buscar ou criar conversa
+        conversa = None
+        if conversa_id:
+            conversa = ConversaService.buscar_conversa_por_id(conversa_id)
+        elif hash_conversa:
+            conversa = ConversaService.buscar_conversa_por_hash(hash_conversa)
+        
+        if not conversa:
+            # Criar nova conversa
+            conversa = ConversaService.criar_conversa(tipo_conversa='chatbot')
+        
+        # Adicionar mensagem do usuário
+        ConversaService.adicionar_mensagem(conversa.id, 'user', prompt)
+        
+        # Detectar tipo de API e usar método apropriado
+        tipo_api = detectar_tipo_api(api_ia)
+        
+        if tipo_api == 'gemini':
+            return groq_visao_gemini(api_ia, prompt, imagens_base64, conversa)
+        else:
+            return groq_visao_openai_requests(api_ia, prompt, imagens_base64, conversa)
+
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Erro ao processar requisição: {str(e)}'
+        }), 500

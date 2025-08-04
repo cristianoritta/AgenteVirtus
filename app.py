@@ -2,6 +2,7 @@ from config import app, db
 from routes import init_routes
 from filters import register_filters
 from models.models import criar_usuario_inicial, EquipeInteligente, Formulario
+from migrations import migrate  # Importando o Flask-Migrate
 
 # Registrar filtros customizados
 register_filters(app)

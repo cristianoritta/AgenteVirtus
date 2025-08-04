@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, flash
-from models.models import Formulario, CampoFormulario, RegistroFormulario, db
+from models.models import Formulario, CampoFormulario, RegistroFormulario, Nota, db
 from datetime import datetime
 import json
 
@@ -238,4 +238,66 @@ def api_registros(id):
     """API para obter os registros de um formulário"""
     registros = RegistroFormulario.query.filter_by(formulario_id=id).order_by(RegistroFormulario.criado_em.desc()).all()
     registros_dict = [registro.to_dict() for registro in registros]
-    return jsonify({'success': True, 'registros': registros_dict}) 
+    return jsonify({'success': True, 'registros': registros_dict})
+
+@formularios_bp.route('/formularios/registros/criar-nota', methods=['POST'])
+def criar_nota_registro():
+    """Cria uma nota baseada nos dados de um registro de formulário"""
+    try:
+        data = request.get_json()
+        registro_id = data.get('registro_id')
+        formulario_id = data.get('formulario_id')
+        dados_registro = data.get('dados', {})
+        
+        # Buscar o formulário e registro
+        formulario = Formulario.query.get_or_404(formulario_id)
+        registro = RegistroFormulario.query.get_or_404(registro_id)
+        
+        # Buscar campos do formulário para obter os labels
+        campos = CampoFormulario.query.filter_by(formulario_id=formulario_id, ativo=True).order_by(CampoFormulario.ordem).all()
+        
+        # Criar título da nota (nome do formulário)
+        titulo = f"{formulario.nome}"
+        
+        # Criar conteúdo da nota com os dados formatados
+        conteudo = f"Formulário: {formulario.nome}\n"
+        conteudo += f"Data do Registro: {registro.criado_em.strftime('%d/%m/%Y %H:%M')}\n"
+        conteudo += f"ID do Registro: {registro.id}\n\n"
+        conteudo += "Dados do Formulário:\n\n"
+        
+        # Adicionar cada campo com seu label e valor
+        for campo in campos:
+            valor = dados_registro.get(campo.nome_campo, '')
+            if valor:
+                if isinstance(valor, list):
+                    valor = ', '.join(valor)
+                conteudo += f"{campo.label}: {valor}\n"
+            else:
+                conteudo += f"{campo.label}: (vazio)\n"
+        
+        # Criar a nota
+        nota = Nota(
+            titulo=titulo,
+            conteudo=conteudo,
+            resumo=f"Registro do formulário {formulario.nome} - ID {registro.id}",
+            tags=f"formulario,{formulario.nome.replace(' ', '_').lower()},registro_{registro.id}",
+            usuario_id=1,  # TODO: Pegar do usuário logado
+            favorita=False,
+            arquivada=False
+        )
+        
+        db.session.add(nota)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Nota criada com sucesso!',
+            'nota_id': nota.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            'success': False,
+            'message': f'Erro ao criar nota: {str(e)}'
+        }), 500 

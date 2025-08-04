@@ -6,14 +6,12 @@ from controllers.PesquisarController import PesquisarController
 from controllers.AssistentesController import AssistentesController
 from controllers.ConversaController import ConversaController
 from controllers.NotasController import NotasController
+from controllers.PdfController import PdfController
 from controllers.FormulariosController import formularios_bp
 from controllers.IaController import testar_api_especifica, testar_api_ia, testar_chatbot
+from controllers.SobreController import SobreController
 
 from models.models import ApiIa
-
-
-
-
 
 def init_routes(app):
     """
@@ -27,6 +25,10 @@ def init_routes(app):
     @app.route('/')
     def index():
         return render_template('index.html')
+    
+    @app.route('/sobre')
+    def sobre():
+        return SobreController.index()
     
     @app.route('/minhaconta', methods=['GET', 'POST'])
     def minhaconta():
@@ -187,6 +189,65 @@ def init_routes(app):
     @app.route('/ferramentas/chat_mensagem_partial', methods=['POST'])
     def chat_mensagem_partial():
         return FerramentasController.chat_mensagem_partial()
+    
+    ##########################################################################################################
+    # Rotas de PDF
+    ##########################################################################################################
+    @app.route('/pdf')
+    def pdf_index():
+        return PdfController.index()
+    
+    @app.route('/pdf/unir', methods=['GET', 'POST'])
+    def pdf_unir():
+        return PdfController.unir_pdfs()
+    
+    @app.route('/pdf/separar', methods=['GET', 'POST'])
+    def pdf_separar():
+        return PdfController.separar_pdf()
+    
+    @app.route('/pdf/girar', methods=['GET', 'POST'])
+    def pdf_girar():
+        return PdfController.girar_pdf()
+    
+    @app.route('/pdf/bookmarks', methods=['GET', 'POST'])
+    def pdf_bookmarks():
+        return PdfController.dividir_por_bookmarks()
+    
+    @app.route('/pdf/extrair-texto', methods=['GET', 'POST'])
+    def pdf_extrair_texto():
+        return PdfController.extrair_texto()
+    
+    @app.route('/pdf/resumir', methods=['GET', 'POST'])
+    def pdf_resumir():
+        return PdfController.resumir_pdf()
+    
+    @app.route('/pdf/markdown', methods=['GET', 'POST'])
+    def pdf_markdown():
+        return PdfController.pdf_para_markdown()
+    
+    @app.route('/pdf/mapa-mental', methods=['GET', 'POST'])
+    def pdf_mapa_mental():
+        return PdfController.pdf_para_mapa_mental()
+    
+    @app.route('/pdf/docx', methods=['GET', 'POST'])
+    def pdf_docx():
+        return PdfController.pdf_para_docx()
+    
+    @app.route('/pdf/xlsx', methods=['GET', 'POST'])
+    def pdf_xlsx():
+        return PdfController.pdf_para_xlsx()
+    
+    @app.route('/pdf/csv', methods=['GET', 'POST'])
+    def pdf_csv():
+        return PdfController.pdf_para_csv()
+    
+    @app.route('/pdf/inserir', methods=['GET', 'POST'])
+    def pdf_inserir():
+        return PdfController.inserir_pdf()
+    
+    @app.route('/pdf/ocr', methods=['GET', 'POST'])
+    def pdf_ocr():
+        return PdfController.ocr_pdf()
     
     ##########################################################################################################
     # Pesquisar

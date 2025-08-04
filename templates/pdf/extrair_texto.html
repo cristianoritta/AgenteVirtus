@@ -1,0 +1,199 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Extrair Texto - AgenteVirtus{% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">
+                        <i class="fas fa-file-alt text-secondary me-2"></i>
+                        Extraia todo o texto de um arquivo PDF
+                    </h5>
+                    
+                    <form id="extrairTextoForm" enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <label for="pdf" class="form-label">Selecione o arquivo PDF</label>
+                            <input type="file" class="form-control" id="pdf" name="pdf" accept=".pdf" required>
+                            <div class="form-text">Selecione um arquivo PDF para extrair o texto.</div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-secondary" id="btnExtrair">
+                                <i class="fas fa-file-text me-1"></i>Extrair Texto
+                            </button>
+                            <a href="/pdf" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Voltar
+                            </a>
+                        </div>
+                    </form>
+
+                    <div id="loading" class="text-center mt-4" style="display: none;">
+                        <div class="spinner-border text-secondary" role="status">
+                            <span class="visually-hidden">Processando...</span>
+                        </div>
+                        <p class="mt-2">Extraindo texto do PDF...</p>
+                    </div>
+
+                    <div id="result" class="mt-4" style="display: none;">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-file-text me-2"></i>
+                                    Texto Extraído
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="text-muted">Texto extraído do PDF</span>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-primary" id="btnCopiar">
+                                            <i class="fas fa-copy me-1"></i>Copiar
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success" id="btnDownload">
+                                            <i class="fas fa-download me-1"></i>Download .txt
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="textoExtraido" class="border rounded p-3 bg-light" style="max-height: 400px; overflow-y: auto; white-space: pre-wrap; font-family: monospace;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="error" class="mt-4" style="display: none;">
+                        <div class="alert alert-danger">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Erro ao extrair texto</h6>
+                            <p id="errorMessage" class="mb-0"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('pdf');
+    const form = document.getElementById('extrairTextoForm');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const error = document.getElementById('error');
+    const errorMessage = document.getElementById('errorMessage');
+    const btnExtrair = document.getElementById('btnExtrair');
+    const btnCopiar = document.getElementById('btnCopiar');
+    const btnDownload = document.getElementById('btnDownload');
+    const textoExtraido = document.getElementById('textoExtraido');
+
+    // Enviar formulário
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('Por favor, selecione um arquivo PDF.');
+            return;
+        }
+
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            alert('Por favor, selecione um arquivo PDF.');
+            return;
+        }
+
+        // Mostrar loading
+        loading.style.display = 'block';
+        result.style.display = 'none';
+        error.style.display = 'none';
+        btnExtrair.disabled = true;
+
+        // Criar FormData
+        const formData = new FormData();
+        formData.append('pdf', file);
+
+        // Enviar requisição
+        fetch('/pdf/extrair-texto', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            loading.style.display = 'none';
+            btnExtrair.disabled = false;
+
+            if (data.status === 'success') {
+                textoExtraido.textContent = data.texto;
+                result.style.display = 'block';
+            } else {
+                errorMessage.textContent = data.message || 'Erro ao extrair texto';
+                error.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            errorMessage.textContent = 'Erro ao processar requisição: ' + err.message;
+            btnExtrair.disabled = false;
+        });
+    });
+
+    // Copiar texto
+    btnCopiar.addEventListener('click', function() {
+        const texto = textoExtraido.textContent;
+        navigator.clipboard.writeText(texto).then(function() {
+            // Mostrar feedback
+            const originalText = btnCopiar.innerHTML;
+            btnCopiar.innerHTML = '<i class="fas fa-check me-1"></i>Copiado!';
+            btnCopiar.classList.remove('btn-outline-primary');
+            btnCopiar.classList.add('btn-success');
+            
+            setTimeout(() => {
+                btnCopiar.innerHTML = originalText;
+                btnCopiar.classList.remove('btn-success');
+                btnCopiar.classList.add('btn-outline-primary');
+            }, 2000);
+        }).catch(function(err) {
+            console.error('Erro ao copiar texto: ', err);
+            alert('Erro ao copiar texto para a área de transferência.');
+        });
+    });
+
+    // Download texto como .txt
+    btnDownload.addEventListener('click', function() {
+        const texto = textoExtraido.textContent;
+        if (!texto) {
+            alert('Nenhum texto para baixar.');
+            return;
+        }
+
+        // Criar blob com o texto
+        const blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
+        const url = window.URL.createObjectURL(blob);
+        
+        // Criar link para download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `texto_extraido_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Limpar
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        // Mostrar feedback
+        const originalText = btnDownload.innerHTML;
+        btnDownload.innerHTML = '<i class="fas fa-check me-1"></i>Baixado!';
+        btnDownload.classList.remove('btn-outline-success');
+        btnDownload.classList.add('btn-success');
+        
+        setTimeout(() => {
+            btnDownload.innerHTML = originalText;
+            btnDownload.classList.remove('btn-success');
+            btnDownload.classList.add('btn-outline-success');
+        }, 2000);
+    });
+});
+</script>
+{% endblock %} 

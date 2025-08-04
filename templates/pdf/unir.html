@@ -1,0 +1,164 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Unir PDFs - AgenteVirtus{% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">
+                        <i class="fas fa-link text-primary me-2"></i>
+                        Combine vários arquivos PDF em um único documento
+                    </h5>
+                    
+                    <form id="unirPdfForm" enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <label for="pdfs" class="form-label">Selecione os arquivos PDF</label>
+                            <input type="file" class="form-control" id="pdfs" name="pdfs" multiple accept=".pdf" required>
+                            <div class="form-text">Você pode selecionar múltiplos arquivos PDF. A ordem de seleção será a ordem de união.</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <div id="fileList" class="alert alert-info" style="display: none;">
+                                <h6>Arquivos selecionados:</h6>
+                                <ul id="fileListItems" class="mb-0"></ul>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary" id="btnUnir">
+                                <i class="fas fa-link me-1"></i>Unir PDFs
+                            </button>
+                            <a href="/pdf" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Voltar
+                            </a>
+                        </div>
+                    </form>
+
+                    <div id="loading" class="text-center mt-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Processando...</span>
+                        </div>
+                        <p class="mt-2">Processando PDFs...</p>
+                    </div>
+
+                    <div id="result" class="mt-4" style="display: none;">
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle me-2"></i>PDFs unidos com sucesso!</h6>
+                            <p class="mb-2">O arquivo será baixado automaticamente.</p>
+                        </div>
+                    </div>
+
+                    <div id="error" class="mt-4" style="display: none;">
+                        <div class="alert alert-danger">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Erro ao processar PDFs</h6>
+                            <p id="errorMessage" class="mb-0"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('pdfs');
+    const fileList = document.getElementById('fileList');
+    const fileListItems = document.getElementById('fileListItems');
+    const form = document.getElementById('unirPdfForm');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const error = document.getElementById('error');
+    const errorMessage = document.getElementById('errorMessage');
+    const btnUnir = document.getElementById('btnUnir');
+
+    // Mostrar lista de arquivos selecionados
+    fileInput.addEventListener('change', function() {
+        const files = Array.from(this.files);
+        if (files.length > 0) {
+            fileListItems.innerHTML = '';
+            files.forEach((file, index) => {
+                const li = document.createElement('li');
+                li.textContent = `${index + 1}. ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`;
+                fileListItems.appendChild(li);
+            });
+            fileList.style.display = 'block';
+        } else {
+            fileList.style.display = 'none';
+        }
+    });
+
+    // Enviar formulário
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const files = fileInput.files;
+        if (files.length === 0) {
+            alert('Por favor, selecione pelo menos um arquivo PDF.');
+            return;
+        }
+
+        // Verificar se todos os arquivos são PDFs
+        for (let file of files) {
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                alert('Por favor, selecione apenas arquivos PDF.');
+                return;
+            }
+        }
+
+        // Mostrar loading
+        loading.style.display = 'block';
+        result.style.display = 'none';
+        error.style.display = 'none';
+        btnUnir.disabled = true;
+
+        // Criar FormData
+        const formData = new FormData();
+        for (let file of files) {
+            formData.append('pdfs', file);
+        }
+
+        // Enviar requisição
+        fetch('/pdf/unir', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            } else {
+                return response.json().then(data => {
+                    throw new Error(data.message || 'Erro ao processar PDFs');
+                });
+            }
+        })
+        .then(blob => {
+            // Criar link para download
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pdf_unido_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            // Mostrar sucesso
+            loading.style.display = 'none';
+            result.style.display = 'block';
+            btnUnir.disabled = false;
+        })
+        .catch(err => {
+            // Mostrar erro
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            errorMessage.textContent = err.message;
+            btnUnir.disabled = false;
+        });
+    });
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,193 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Separar PDF - AgenteVirtus{% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">
+                        <i class="fas fa-cut text-success me-2"></i>
+                        Divida um PDF em vários arquivos
+                    </h5>
+                    
+                    <form id="separarPdfForm" enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <label for="pdf" class="form-label">Selecione o arquivo PDF</label>
+                            <input type="file" class="form-control" id="pdf" name="pdf" accept=".pdf" required>
+                            <div class="form-text">Selecione um arquivo PDF para separar.</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="tipo_separacao" class="form-label">Tipo de Separação</label>
+                            <select class="form-select" id="tipo_separacao" name="tipo_separacao" required>
+                                <option value="por_pagina">Por Página (cada página em um arquivo separado)</option>
+                                <option value="por_tamanho">Por Tamanho (dividir por tamanho máximo)</option>
+                                <option value="pagina_especifica">Página Específica (dividir em uma página específica)</option>
+                                <option value="quantidade_paginas">Por Quantidade (X páginas por arquivo)</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4" id="tamanho_div" style="display: none;">
+                            <label for="tamanho_max" class="form-label">Tamanho Máximo (MB)</label>
+                            <input type="number" class="form-control" id="tamanho_max" name="tamanho_max" value="5" min="1" max="50">
+                            <div class="form-text">Tamanho máximo de cada arquivo em MB.</div>
+                        </div>
+
+                        <div class="mb-4" id="pagina_especifica_div" style="display: none;">
+                            <label for="pagina_separacao" class="form-label">Número da Página para Separar</label>
+                            <input type="number" class="form-control" id="pagina_separacao" name="pagina_separacao" value="1" min="1">
+                            <div class="form-text">Digite o número da página onde o PDF será dividido (criará 2 arquivos).</div>
+                        </div>
+
+                        <div class="mb-4" id="quantidade_paginas_div" style="display: none;">
+                            <label for="qtd_paginas" class="form-label">Quantidade de Páginas por Arquivo</label>
+                            <input type="number" class="form-control" id="qtd_paginas" name="qtd_paginas" value="1" min="1">
+                            <div class="form-text">Digite quantas páginas cada arquivo deve ter.</div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-success" id="btnSeparar">
+                                <i class="fas fa-scissors me-1"></i>Separar PDF
+                            </button>
+                            <a href="/pdf" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Voltar
+                            </a>
+                        </div>
+                    </form>
+
+                    <div id="loading" class="text-center mt-4" style="display: none;">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">Processando...</span>
+                        </div>
+                        <p class="mt-2">Separando PDF...</p>
+                        <small class="text-muted">Todos os arquivos serão compactados em um arquivo ZIP.</small>
+                    </div>
+
+                    <div id="result" class="mt-4" style="display: none;">
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle me-2"></i>PDF separado com sucesso!</h6>
+                            <p class="mb-2">O arquivo ZIP com todos os PDFs será baixado automaticamente.</p>
+                        </div>
+                    </div>
+
+                    <div id="error" class="mt-4" style="display: none;">
+                        <div class="alert alert-danger">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Erro ao separar PDF</h6>
+                            <p id="errorMessage" class="mb-0"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('pdf');
+    const tipoSeparacao = document.getElementById('tipo_separacao');
+    const tamanhoDiv = document.getElementById('tamanho_div');
+    const paginaEspecificaDiv = document.getElementById('pagina_especifica_div');
+    const quantidadePaginasDiv = document.getElementById('quantidade_paginas_div');
+    const form = document.getElementById('separarPdfForm');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const error = document.getElementById('error');
+    const errorMessage = document.getElementById('errorMessage');
+    const btnSeparar = document.getElementById('btnSeparar');
+
+    // Mostrar/ocultar campos baseado no tipo de separação
+    tipoSeparacao.addEventListener('change', function() {
+        // Ocultar todos os campos primeiro
+        tamanhoDiv.style.display = 'none';
+        paginaEspecificaDiv.style.display = 'none';
+        quantidadePaginasDiv.style.display = 'none';
+        
+        // Mostrar o campo apropriado
+        if (this.value === 'por_tamanho') {
+            tamanhoDiv.style.display = 'block';
+        } else if (this.value === 'pagina_especifica') {
+            paginaEspecificaDiv.style.display = 'block';
+        } else if (this.value === 'quantidade_paginas') {
+            quantidadePaginasDiv.style.display = 'block';
+        }
+    });
+
+    // Enviar formulário
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('Por favor, selecione um arquivo PDF.');
+            return;
+        }
+
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            alert('Por favor, selecione um arquivo PDF.');
+            return;
+        }
+
+        // Mostrar loading
+        loading.style.display = 'block';
+        result.style.display = 'none';
+        error.style.display = 'none';
+        btnSeparar.disabled = true;
+
+        // Criar FormData
+        const formData = new FormData();
+        formData.append('pdf', file);
+        formData.append('tipo_separacao', tipoSeparacao.value);
+        
+        if (tipoSeparacao.value === 'por_tamanho') {
+            formData.append('tamanho_max', document.getElementById('tamanho_max').value);
+        } else if (tipoSeparacao.value === 'pagina_especifica') {
+            formData.append('pagina_separacao', document.getElementById('pagina_separacao').value);
+        } else if (tipoSeparacao.value === 'quantidade_paginas') {
+            formData.append('qtd_paginas', document.getElementById('qtd_paginas').value);
+        }
+
+        // Enviar requisição
+        fetch('/pdf/separar', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            } else {
+                return response.json().then(data => {
+                    throw new Error(data.message || 'Erro ao separar PDF');
+                });
+            }
+        })
+        .then(blob => {
+            // Criar link para download
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pdf_separado_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            // Mostrar sucesso
+            loading.style.display = 'none';
+            result.style.display = 'block';
+            btnSeparar.disabled = false;
+        })
+        .catch(err => {
+            // Mostrar erro
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            errorMessage.textContent = err.message;
+            btnSeparar.disabled = false;
+        });
+    });
+});
+</script>
+{% endblock %} 

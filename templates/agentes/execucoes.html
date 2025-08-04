@@ -25,6 +25,62 @@
         </div>
     </div>
 
+    <!-- Filtros -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter"></i> Filtros
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="mb-0">
+                <div class="row">
+                    {% if not equipe %}
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Equipe</label>
+                            <select name="equipe" class="form-select">
+                                <option value="">Todas</option>
+                                {% for eq in equipes %}
+                                <option value="{{ eq.id }}" {% if filtros.equipe == eq.id %}selected{% endif %}>
+                                    {{ eq.nome }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Sprint</label>
+                            <input type="number" name="sprint" class="form-control" value="{{ filtros.sprint }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Contexto contém</label>
+                            <input type="text" name="contexto" class="form-control" value="{{ filtros.contexto }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>Resposta contém</label>
+                            <input type="text" name="resposta" class="form-control" value="{{ filtros.resposta }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-12 text-right">
+                        <a href="?" class="btn btn-secondary">Limpar</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Filtrar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Content Row -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
@@ -45,6 +101,7 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Equipe</th>
+                                <th>Sprint</th>
                                 <th>Contexto</th>
                                 <th>Resposta</th>
                                 <th>Data</th>
@@ -52,7 +109,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for execucao in execucoes %}
+                            {% for execucao in execucoes.items %}
                             <tr>
                                 <td>{{ execucao.id }}</td>
                                 <td>
@@ -62,6 +119,7 @@
                                         {{ execucao.equipe.nome }}
                                     {% endif %}
                                 </td>
+                                <td>{{ execucao.sprint }}</td>
                                 <td>
                                     {% if execucao.contexto %}
                                         {% if "Agente" in execucao.contexto %}
@@ -106,6 +164,59 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+
+                <!-- Paginação -->
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <div>
+                        Mostrando {{ execucoes.items|length }} de {{ execucoes.total }} execuções
+                    </div>
+                    <nav aria-label="Navegação de página">
+                        <ul class="pagination mb-0">
+                            <!-- Primeira página -->
+                            <li class="page-item {% if not execucoes.has_prev %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('listar_execucoes', page=1, equipe=filtros.equipe, sprint=filtros.sprint, contexto=filtros.contexto, resposta=filtros.resposta) }}">
+                                    <i class="fas fa-angle-double-left"></i>
+                                </a>
+                            </li>
+                            
+                            <!-- Página anterior -->
+                            <li class="page-item {% if not execucoes.has_prev %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('listar_execucoes', page=execucoes.prev_num, equipe=filtros.equipe, sprint=filtros.sprint, contexto=filtros.contexto, resposta=filtros.resposta) }}">
+                                    <i class="fas fa-angle-left"></i>
+                                </a>
+                            </li>
+
+                            <!-- Páginas -->
+                            {% for page_num in execucoes.iter_pages(left_edge=2, left_current=2, right_current=2, right_edge=2) %}
+                                {% if page_num %}
+                                    <li class="page-item {% if page_num == execucoes.page %}active{% endif %}">
+                                        <a class="page-link" href="{{ url_for('listar_execucoes', page=page_num, equipe=filtros.equipe, sprint=filtros.sprint, contexto=filtros.contexto, resposta=filtros.resposta) }}">
+                                            {{ page_num }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+
+                            <!-- Próxima página -->
+                            <li class="page-item {% if not execucoes.has_next %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('listar_execucoes', page=execucoes.next_num, equipe=filtros.equipe, sprint=filtros.sprint, contexto=filtros.contexto, resposta=filtros.resposta) }}">
+                                    <i class="fas fa-angle-right"></i>
+                                </a>
+                            </li>
+
+                            <!-- Última página -->
+                            <li class="page-item {% if not execucoes.has_next %}disabled{% endif %}">
+                                <a class="page-link" href="{{ url_for('listar_execucoes', page=execucoes.pages, equipe=filtros.equipe, sprint=filtros.sprint, contexto=filtros.contexto, resposta=filtros.resposta) }}">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
                 </div>
             {% else %}
                 <div class="text-center text-muted">

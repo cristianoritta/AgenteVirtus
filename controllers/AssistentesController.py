@@ -64,9 +64,25 @@ class AssistentesController:
         
         assistente = Assistente.query.get_or_404(assistente_id)
         
-        resultado = IaController.processar_texto(pergunta, assistente.conhecimento)
+        # Garantir que todas as variáveis sejam strings válidas
+        pergunta_str = str(pergunta) if pergunta is not None else ""
+        descricao_str = str(assistente.descricao) if assistente.descricao is not None else ""
+        conhecimento_str = str(assistente.conhecimento) if assistente.conhecimento is not None else ""
         
-        return jsonify(resultado)
+        # Construir o prompt de forma segura
+        prompt = f"{pergunta_str}\n\n{descricao_str}\n\n{conhecimento_str}"
+        
+        resultado = IaController.groq(prompt, None, None)
+        
+        if hasattr(resultado[0], 'get_json'):
+            resultado_data = resultado[0].get_json()
+        else:
+            resultado_data = resultado[0]
+            
+        print(resultado_data)
+        
+        return jsonify(resultado_data)
+    
 
     @staticmethod
     def editar(id):

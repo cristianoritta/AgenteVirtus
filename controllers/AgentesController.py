@@ -127,9 +127,14 @@ class AgentesController:
             
             """
 
+            # Obter o último número de sprint para esta equipe
+            ultima_execucao = ExecucaoEquipe.query.filter_by(equipe_id=equipe_id).order_by(ExecucaoEquipe.sprint.desc()).first()
+            numero_sprint = (ultima_execucao.sprint or 0) + 1 if ultima_execucao else 1
+
             # Criar registro de execução no banco de dados
             execucao = ExecucaoEquipe(
                 equipe_id=equipe_id,
+                sprint=numero_sprint,
                 contexto=texto,
                 resposta="Execução iniciada"
             )
@@ -286,8 +291,9 @@ Colunas: {', '.join(df.columns.tolist())}
                 
                 if not node:
                     continue
+                
                 if node['type'] == 'agent':
-
+                    # Montar o prompt para o agente
                     prompt = f"""{node['config']['backstory']}
                     ### TAREFA ###
                     <tarefa>
@@ -305,7 +311,6 @@ Colunas: {', '.join(df.columns.tolist())}
 
                     # Extrair a resposta do resultado
                     if isinstance(resultado, tuple) and len(resultado) == 2:
-                        # Se for uma tupla (Response, status_code), extrair o conteúdo
                         if hasattr(resultado[0], 'get_json'):
                             resultado_data = resultado[0].get_json()
                         else:
@@ -321,8 +326,18 @@ Colunas: {', '.join(df.columns.tolist())}
                         resposta_texto = resultado_data['resposta']
                     else:
                         resposta_texto = str(resultado_data)
-                    print(
-                        f"DEBUG - Resposta do agente {node['id']}: {resposta_texto[:200]}...")
+
+                    # Criar registro de execução para este agente
+                    execucao_agente = ExecucaoEquipe(
+                        equipe_id=equipe_id,
+                        sprint=execucao.sprint,
+                        contexto=prompt,  # Salvar o prompt completo como contexto
+                        resposta=resposta_texto
+                    )
+                    db.session.add(execucao_agente)
+                    db.session.commit()
+
+                    print(f"DEBUG - Resposta do agente {node['id']}: {resposta_texto[:200]}...")
                     texto += f'<node_{node["id"]}>{resposta_texto}</node_{node["id"]}>\n\n\n'
                     respostas.append({
                         'resposta': resposta_texto,
@@ -334,16 +349,13 @@ Colunas: {', '.join(df.columns.tolist())}
                 # TAREFA
                 ########################################################################################
                 if node['type'] == 'task':
-
                     # Obter a última resposta e garantir que seja uma string
                     ultima_resposta = respostas[-1]['resposta']
 
                     # Se for uma tupla (Response, status_code), extrair o conteúdo
                     if isinstance(ultima_resposta, tuple):
                         if hasattr(ultima_resposta[0], 'get_data'):
-                            # Se for um objeto Response do Flask
-                            texto_entrada = ultima_resposta[0].get_data(
-                                as_text=True)
+                            texto_entrada = ultima_resposta[0].get_data(as_text=True)
                         else:
                             texto_entrada = str(ultima_resposta[0])
                     else:
@@ -351,20 +363,35 @@ Colunas: {', '.join(df.columns.tolist())}
 
                     # Obter o código Python da configuração da task
                     codigo_python = node['config']['expectedOutput']
+                    texto_entrada = '00008323520184013202'  # Valor fixo para teste
 
-                    texto_entrada = '00008323520184013202'
+                    # Preparar o código completo
+                    codigo_completo = codigo_python.replace('{texto_entrada}', texto_entrada)
 
-                    # Preparar o código completo com a variável texto_entrada definida
-                    codigo_completo = codigo_python.replace(
-                        '{texto_entrada}', texto_entrada)
+                    # Criar o contexto da task
+                    contexto_task = f"""### TAREFA PYTHON ###
+                    <entrada>
+                    {texto_entrada}
+                    </entrada>
 
-                    # Executar o código em um namespace local para capturar variáveis
+                    <codigo>
+                    {codigo_python}
+                    </codigo>"""
+
+                    # Executar o código
                     local_vars = {}
                     exec(codigo_completo, globals(), local_vars)
+                    resultado_task = local_vars.get('resultado', 'Código executado com sucesso')
 
-                    # Capturar o resultado - pode ser de uma variável 'resultado' ou a última expressão
-                    resultado_task = local_vars.get(
-                        'resultado', 'Código executado com sucesso')
+                    # Criar registro de execução para esta task
+                    execucao_task = ExecucaoEquipe(
+                        equipe_id=equipe_id,
+                        sprint=execucao.sprint,
+                        contexto=contexto_task,
+                        resposta=str(resultado_task)
+                    )
+                    db.session.add(execucao_task)
+                    db.session.commit()
 
                     # Adicionar o resultado ao array de respostas
                     respostas.append({
@@ -372,17 +399,12 @@ Colunas: {', '.join(df.columns.tolist())}
                         'node': node
                     })
 
-                    # Atualizar a execução no banco de dados com o resultado da tarefa
-                    execucao.resposta = f"Tarefa {node['id']}: {str(resultado_task)}"
-                    db.session.commit()
-
                     # Atualizar o texto para o próximo agente/task
-                    texto += '\n\n ########' + resultado_task
+                    texto += '\n\n ########' + str(resultado_task)
 
                 if node['type'] == 'guardrail':
-
-                    prompt = f"""
-                    ### GUARDRAIL ###
+                    # Montar o prompt para o guardrail
+                    prompt = f"""### GUARDRAIL ###
                     <tarefa>
                     {node['config']['rules']}
                     </tarefa>
@@ -402,12 +424,11 @@ Colunas: {', '.join(df.columns.tolist())}
                     </formato_saida>
                     """
 
-                    # Testar primeiro sem o arquivo base64
+                    # Executar o guardrail
                     resultado = IaController.groq(prompt)
 
                     # Extrair a resposta do resultado
                     if isinstance(resultado, tuple) and len(resultado) == 2:
-                        # Se for uma tupla (Response, status_code), extrair o conteúdo
                         if hasattr(resultado[0], 'get_json'):
                             resultado_data = resultado[0].get_json()
                         else:
@@ -424,16 +445,21 @@ Colunas: {', '.join(df.columns.tolist())}
                     else:
                         resposta_texto = str(resultado_data)
 
-                    texto += f'<node_{node["id"]}>{resposta_texto}</node_{node["id"]}>\n\n\n'
+                    # Criar registro de execução para este guardrail
+                    execucao_guardrail = ExecucaoEquipe(
+                        equipe_id=equipe_id,
+                        sprint=execucao.sprint,
+                        contexto=prompt,  # Salvar o prompt completo como contexto
+                        resposta=resposta_texto
+                    )
+                    db.session.add(execucao_guardrail)
+                    db.session.commit()
 
+                    texto += f'<node_{node["id"]}>{resposta_texto}</node_{node["id"]}>\n\n\n'
                     respostas.append({
                         'resposta': resposta_texto,
                         'node': node
                     })
-
-                    # Atualizar a execução no banco de dados com a resposta do guardrail
-                    execucao.resposta = f"Guardrail {node['id']}: {resposta_texto}..."
-                    db.session.commit()
 
                 # ########################################################################################
                 # FORMATO DE SAÍDA
@@ -446,9 +472,7 @@ Colunas: {', '.join(df.columns.tolist())}
                     # Se for uma tupla (Response, status_code), extrair o conteúdo
                     if isinstance(ultima_resposta, tuple):
                         if hasattr(ultima_resposta[0], 'get_data'):
-                            # Se for um objeto Response do Flask
-                            conteudo_para_formatar = ultima_resposta[0].get_data(
-                                as_text=True)
+                            conteudo_para_formatar = ultima_resposta[0].get_data(as_text=True)
                         else:
                             conteudo_para_formatar = str(ultima_resposta[0])
                     else:
@@ -458,14 +482,33 @@ Colunas: {', '.join(df.columns.tolist())}
                     formato = node['config']['type']
                     nome_arquivo = f"resultado_{equipe.nome}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
+                    # Criar o contexto do formatoSaida
+                    contexto_formato = f"""### FORMATO DE SAÍDA ###
+                    <formato>
+                    {formato}
+                    </formato>
+
+                    <conteudo_original>
+                    {conteudo_para_formatar}
+                    </conteudo_original>"""
+
                     arquivo_output, nome_arquivo_final, content_type = AgentesController.gerar_arquivo_saida(
                         conteudo_para_formatar, formato, nome_arquivo, equipe_id
                     )
 
+                    # Criar registro de execução para este formatoSaida
+                    execucao_formato = ExecucaoEquipe(
+                        equipe_id=equipe_id,
+                        sprint=execucao.sprint,
+                        contexto=contexto_formato,
+                        resposta=f"Arquivo gerado: {nome_arquivo_final} ({content_type})"
+                    )
+                    db.session.add(execucao_formato)
+                    db.session.commit()
+
                     # Criar resposta para download
                     response = make_response(arquivo_output.getvalue())
-                    response.headers[
-                        'Content-Disposition'] = f'attachment; filename={nome_arquivo_final}'
+                    response.headers['Content-Disposition'] = f'attachment; filename={nome_arquivo_final}'
                     response.headers['Content-Type'] = content_type
 
                     # Adicionar à lista de respostas
@@ -474,10 +517,6 @@ Colunas: {', '.join(df.columns.tolist())}
                         'node': node,
                         'arquivo_download': response
                     })
-
-                    # Atualizar a execução no banco de dados com o resultado do formato de saída
-                    execucao.resposta = f"Formato Saída {node['id']}: Arquivo gerado - {nome_arquivo_final}"
-                    db.session.commit()
 
                     # Atualizar o texto para o próximo agente/task
                     texto += f'\n\n<node_{node["id"]}>Arquivo gerado: {nome_arquivo_final}</node_{node["id"]}>'
@@ -495,6 +534,16 @@ Colunas: {', '.join(df.columns.tolist())}
                             node_id=node['id'], equipe_id=str(equipe.id)).first()
 
                     if template_arquivo:
+                        # Criar o contexto do template
+                        contexto_template = f"""### TEMPLATE ###
+                        <template_arquivo>
+                        {template_arquivo.filename}
+                        </template_arquivo>
+
+                        <conteudo_para_inserir>
+                        {ultima_resposta}
+                        </conteudo_para_inserir>"""
+
                         doc = Document(BytesIO(template_arquivo.data))
                         # Quebra as linhas em parágrafos
                         for linha in ultima_resposta.split('\n'):
@@ -504,22 +553,24 @@ Colunas: {', '.join(df.columns.tolist())}
                         doc.save(output)
                         output.seek(0)
                         
+                        nome_arquivo = f"resultado_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
+
+                        # Criar registro de execução para este template
+                        execucao_template = ExecucaoEquipe(
+                            equipe_id=equipe_id,
+                            sprint=execucao.sprint,
+                            contexto=contexto_template,
+                            resposta=f"Arquivo gerado: {nome_arquivo}"
+                        )
+                        db.session.add(execucao_template)
+                        db.session.commit()
+                        
                         # Criar resposta para download
                         response = make_response(output.getvalue())
-                        response.headers['Content-Disposition'] = f'attachment; filename=resultado_{datetime.now().strftime("%Y%m%d_%H%M%S")}.docx'
+                        response.headers['Content-Disposition'] = f'attachment; filename={nome_arquivo}'
                         response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
                         return response
 
-            # Salvar cada resposta de agente como um registro separado
-            for i, resposta in enumerate(respostas):
-                # Criar nova execução para cada agente
-                execucao_agente = ExecucaoEquipe(
-                    equipe_id=equipe_id,
-                    contexto=f"Execução {execucao.id} - Agente {resposta['node']['id']} ({resposta['node']['type']})",
-                    resposta=resposta['resposta']
-                )
-                db.session.add(execucao_agente)
-            
             # Criar resumo final da execução
             resumo_final = f"Execução completa. Total de etapas: {len(respostas)}. Última resposta: {respostas[-1]['resposta']}..."
             execucao.resposta = resumo_final
@@ -873,26 +924,87 @@ Colunas: {', '.join(df.columns.tolist())}
 
     @staticmethod
     def listar_execucoes(equipe_id=None):
-        """Lista as execuções de uma equipe específica ou todas as execuções"""
+        """Lista as execuções de uma equipe específica ou todas as execuções com paginação e filtros"""
         try:
+            # Parâmetros de paginação
+            page = request.args.get('page', 1, type=int)
+            per_page = request.args.get('per_page', 10, type=int)
+
+            # Parâmetros de filtro
+            filtro_equipe = request.args.get('equipe', type=int)
+            filtro_sprint = request.args.get('sprint', type=int)
+            filtro_contexto = request.args.get('contexto', '')
+            filtro_resposta = request.args.get('resposta', '')
+
+            # Construir a query base
+            query = ExecucaoEquipe.query
+
+            # Aplicar filtros
             if equipe_id:
-                execucoes = ExecucaoEquipe.query.filter_by(equipe_id=equipe_id).order_by(ExecucaoEquipe.criado_em.desc()).all()
-                equipe = EquipeInteligente.query.get_or_404(equipe_id)
-                print(f"DEBUG: Encontradas {len(execucoes)} execuções para equipe {equipe_id}")
-                return render_template('agentes/execucoes.html', execucoes=execucoes, equipe=equipe)
-            else:
-                execucoes = ExecucaoEquipe.query.order_by(ExecucaoEquipe.criado_em.desc()).all()
-                print(f"DEBUG: Encontradas {len(execucoes)} execuções no total")
-                return render_template('agentes/execucoes.html', execucoes=execucoes)
+                query = query.filter_by(equipe_id=equipe_id)
+            elif filtro_equipe:
+                query = query.filter_by(equipe_id=filtro_equipe)
+
+            if filtro_sprint:
+                query = query.filter_by(sprint=filtro_sprint)
+
+            if filtro_contexto:
+                query = query.filter(ExecucaoEquipe.contexto.like(f'%{filtro_contexto}%'))
+
+            if filtro_resposta:
+                query = query.filter(ExecucaoEquipe.resposta.like(f'%{filtro_resposta}%'))
+
+            # Ordenar e paginar
+            execucoes_paginadas = query.order_by(ExecucaoEquipe.criado_em.desc()).paginate(
+                page=page, 
+                per_page=per_page,
+                error_out=False
+            )
+
+            # Buscar todas as equipes para o filtro
+            equipes = EquipeInteligente.query.all()
+
+            # Buscar sprints únicos para o filtro
+            sprints = db.session.query(ExecucaoEquipe.sprint).distinct().order_by(ExecucaoEquipe.sprint).all()
+            sprints = [s[0] for s in sprints if s[0] is not None]  # Remover None e extrair valores
+
+            # Se estiver filtrando por equipe específica
+            equipe_atual = None
+            if equipe_id:
+                equipe_atual = EquipeInteligente.query.get_or_404(equipe_id)
+
+            return render_template(
+                'agentes/execucoes.html',
+                execucoes=execucoes_paginadas,
+                equipe=equipe_atual,
+                equipes=equipes,
+                sprints=sprints,
+                filtros={
+                    'equipe': filtro_equipe,
+                    'sprint': filtro_sprint,
+                    'contexto': filtro_contexto,
+                    'resposta': filtro_resposta
+                }
+            )
+
         except Exception as e:
             print(f"ERRO em listar_execucoes: {e}")
             return render_template('agentes/execucoes.html', execucoes=[], error=str(e))
 
     @staticmethod
     def detalhes_execucao(execucao_id):
-        """Mostra os detalhes de uma execução específica"""
+        """Mostra os detalhes de uma execução específica e todas as execuções da mesma sprint"""
         execucao = ExecucaoEquipe.query.get_or_404(execucao_id)
-        return render_template('agentes/detalhes_execucao.html', execucao=execucao)
+        
+        # Buscar todas as execuções da mesma sprint
+        execucoes_sprint = ExecucaoEquipe.query.filter_by(
+            equipe_id=execucao.equipe_id,
+            sprint=execucao.sprint
+        ).order_by(ExecucaoEquipe.criado_em.asc()).all()
+        
+        return render_template('agentes/detalhes_execucao.html', 
+                             execucao=execucao, 
+                             execucoes_sprint=execucoes_sprint)
 
     @staticmethod
     def excluir_execucao(execucao_id):

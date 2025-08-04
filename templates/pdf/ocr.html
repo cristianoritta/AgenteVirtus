@@ -1,0 +1,221 @@
+{% extends "layout/base.html" %}
+
+{% block title %}OCR PDF - AgenteVirtus{% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">
+                        <i class="fas fa-eye text-info me-2"></i>
+                        Faça OCR em PDF usando Inteligência Artificial
+                    </h5>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Como funciona:</strong> O sistema extrai todas as imagens do PDF, converte para JPG e envia para a IA usando o modelo de visão configurado nas configurações.
+                    </div>
+                    
+                    <form id="ocrPdfForm" enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <label for="pdf" class="form-label">Selecione o arquivo PDF</label>
+                            <input type="file" class="form-control" id="pdf" name="pdf" accept=".pdf" required>
+                            <div class="form-text">Selecione um PDF para fazer OCR. O sistema extrairá todas as imagens e enviará para IA processar.</div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-info" id="btnOcr">
+                                <i class="fas fa-eye me-1"></i>Fazer OCR com IA
+                            </button>
+                            <a href="/pdf" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Voltar
+                            </a>
+                        </div>
+                    </form>
+
+                    <div id="loading" class="text-center mt-4" style="display: none;">
+                        <div class="spinner-border text-info" role="status">
+                            <span class="visually-hidden">Processando...</span>
+                        </div>
+                        <p class="mt-2">Processando OCR com IA...</p>
+                        <small class="text-muted">Extraindo imagens do PDF, convertendo para JPG e enviando para transcrição. Isso pode levar alguns segundos.</small>
+                    </div>
+
+                    <div id="result" class="mt-4" style="display: none;">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="mb-0">
+                                    <i class="fas fa-eye me-2"></i>
+                                    Texto Extraído por OCR
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="infoProcessamento" class="alert alert-success mb-3" style="display: none;">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    <span id="infoText"></span>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <span class="text-muted">Texto processado com IA</span>
+                                    <div class="d-flex gap-2">
+                                        <button class="btn btn-sm btn-outline-primary" id="btnCopiar">
+                                            <i class="fas fa-copy me-1"></i>Copiar
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-success" id="btnDownload">
+                                            <i class="fas fa-download me-1"></i>Download .txt
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="textoOcr" class="border rounded p-3 bg-light" style="max-height: 500px; overflow-y: auto; white-space: pre-wrap; line-height: 1.6;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="error" class="mt-4" style="display: none;">
+                        <div class="alert alert-danger">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Erro ao processar OCR</h6>
+                            <p id="errorMessage" class="mb-0"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('pdf');
+    const form = document.getElementById('ocrPdfForm');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const error = document.getElementById('error');
+    const errorMessage = document.getElementById('errorMessage');
+    const btnOcr = document.getElementById('btnOcr');
+    const btnCopiar = document.getElementById('btnCopiar');
+    const btnDownload = document.getElementById('btnDownload');
+    const textoOcr = document.getElementById('textoOcr');
+    const infoProcessamento = document.getElementById('infoProcessamento');
+    const infoText = document.getElementById('infoText');
+
+    // Enviar formulário
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('Por favor, selecione um arquivo PDF.');
+            return;
+        }
+
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            alert('Por favor, selecione um arquivo PDF.');
+            return;
+        }
+
+        // Mostrar loading
+        loading.style.display = 'block';
+        result.style.display = 'none';
+        error.style.display = 'none';
+        btnOcr.disabled = true;
+        infoProcessamento.style.display = 'none';
+        infoText.textContent = '';
+
+        // Criar FormData
+        const formData = new FormData();
+        formData.append('pdf', file);
+
+        // Enviar requisição
+        fetch('/pdf/ocr', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            loading.style.display = 'none';
+            btnOcr.disabled = false;
+
+            if (data.status === 'success') {
+                textoOcr.innerHTML = data.response || data.message || 'OCR processado com sucesso!';
+                result.style.display = 'block';
+                const totalImagens = data.imagens_processadas || 0;
+                if (totalImagens > 0) {
+                    infoText.textContent = `OCR processado com sucesso! ${totalImagens} imagem(ns) extraída(s) do PDF e processada(s) pela IA.`;
+                } else {
+                    infoText.textContent = `Texto extraído e processado com sucesso pela IA.`;
+                }
+                infoProcessamento.style.display = 'block';
+            } else {
+                errorMessage.textContent = data.message || 'Erro ao processar OCR';
+                error.style.display = 'block';
+            }
+        })
+        .catch(err => {
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            errorMessage.textContent = 'Erro ao processar requisição: ' + err.message;
+            btnOcr.disabled = false;
+        });
+    });
+
+    // Copiar texto
+    btnCopiar.addEventListener('click', function() {
+        const texto = textoOcr.textContent;
+        navigator.clipboard.writeText(texto).then(function() {
+            // Mostrar feedback
+            const originalText = btnCopiar.innerHTML;
+            btnCopiar.innerHTML = '<i class="fas fa-check me-1"></i>Copiado!';
+            btnCopiar.classList.remove('btn-outline-primary');
+            btnCopiar.classList.add('btn-success');
+            
+            setTimeout(() => {
+                btnCopiar.innerHTML = originalText;
+                btnCopiar.classList.remove('btn-success');
+                btnCopiar.classList.add('btn-outline-primary');
+            }, 2000);
+        }).catch(function(err) {
+            console.error('Erro ao copiar texto: ', err);
+            alert('Erro ao copiar texto para a área de transferência.');
+        });
+    });
+
+    // Download texto como .txt
+    btnDownload.addEventListener('click', function() {
+        const texto = textoOcr.textContent;
+        if (!texto) {
+            alert('Nenhum texto para baixar.');
+            return;
+        }
+
+        // Criar blob com o texto
+        const blob = new Blob([texto], { type: 'text/plain;charset=utf-8' });
+        const url = window.URL.createObjectURL(blob);
+        
+        // Criar link para download
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ocr_resultado_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        
+        // Limpar
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        // Mostrar feedback
+        const originalText = btnDownload.innerHTML;
+        btnDownload.innerHTML = '<i class="fas fa-check me-1"></i>Baixado!';
+        btnDownload.classList.remove('btn-outline-success');
+        btnDownload.classList.add('btn-success');
+        
+        setTimeout(() => {
+            btnDownload.innerHTML = originalText;
+            btnDownload.classList.remove('btn-success');
+            btnDownload.classList.add('btn-outline-success');
+        }, 2000);
+    });
+});
+</script>
+{% endblock %} 

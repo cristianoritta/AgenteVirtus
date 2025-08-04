@@ -2,6 +2,7 @@ from flask import render_template, request, jsonify, redirect, url_for, flash
 from config import db
 from models.models import Nota, CategoriaNota, VinculoNota, Usuario
 from datetime import datetime
+import controllers.IaController as IaController
 import json
 import re
 
@@ -346,14 +347,17 @@ class NotasController:
             if not conteudo:
                 return jsonify({'success': False, 'error': 'Conteúdo é obrigatório'}), 400
             
-            # Algoritmo simples para gerar resumo
-            # Remove HTML tags e pega as primeiras 150 caracteres
-            texto_limpo = re.sub(r'<[^>]+>', '', conteudo)
-            resumo = texto_limpo[:150] + '...' if len(texto_limpo) > 150 else texto_limpo
+            # Gerar resumo com IA
+            resultado = IaController.groq(f"Elabore um pequeno resumo, em duas ou três frases, da minha nota: \n\n {conteudo}", None, None)
+            
+            if hasattr(resultado[0], 'get_json'):
+                resultado_data = resultado[0].get_json()
+            else:
+                resultado_data = resultado[0]
             
             return jsonify({
                 'success': True,
-                'resumo': resumo
+                'resumo': resultado_data['resposta']
             })
             
         except Exception as e:

@@ -1,0 +1,192 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Inserir PDF - AgenteVirtus{% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">
+                        <i class="fas fa-plus-circle text-primary me-2"></i>
+                        Insira um PDF no meio de outro PDF
+                    </h5>
+                    
+                    <form id="inserirPdfForm" enctype="multipart/form-data">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label for="pdf_principal" class="form-label">PDF Principal</label>
+                                    <input type="file" class="form-control" id="pdf_principal" name="pdf_principal" accept=".pdf" required>
+                                    <div class="form-text">Selecione o PDF onde você quer inserir o outro PDF.</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-4">
+                                    <label for="pdf_inserir" class="form-label">PDF para Inserir</label>
+                                    <input type="file" class="form-control" id="pdf_inserir" name="pdf_inserir" accept=".pdf" required>
+                                    <div class="form-text">Selecione o PDF que será inserido no principal.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="posicao" class="form-label">Posição de Inserção</label>
+                            <select class="form-select" id="posicao" name="posicao" required>
+                                <option value="inicio">No início do PDF principal</option>
+                                <option value="pagina_especifica">Após uma página específica</option>
+                                <option value="final" selected>No final do PDF principal</option>
+                            </select>
+                            <div class="form-text">Escolha onde inserir o PDF.</div>
+                        </div>
+
+                        <div class="mb-4" id="pagina_div" style="display: none;">
+                            <label for="pagina_especifica" class="form-label">Número da Página</label>
+                            <input type="number" class="form-control" id="pagina_especifica" name="pagina_especifica" value="1" min="1">
+                            <div class="form-text">Digite o número da página após a qual o PDF será inserido.</div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary" id="btnInserir">
+                                <i class="fas fa-plus-circle me-1"></i>Inserir PDF
+                            </button>
+                            <a href="/pdf" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Voltar
+                            </a>
+                        </div>
+                    </form>
+
+                    <div id="loading" class="text-center mt-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Processando...</span>
+                        </div>
+                        <p class="mt-2">Inserindo PDF...</p>
+                        <small class="text-muted">Isso pode levar alguns segundos dependendo do tamanho dos arquivos.</small>
+                    </div>
+
+                    <div id="result" class="mt-4" style="display: none;">
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle me-2"></i>PDF inserido com sucesso!</h6>
+                            <p class="mb-2">O arquivo será baixado automaticamente.</p>
+                        </div>
+                    </div>
+
+                    <div id="error" class="mt-4" style="display: none;">
+                        <div class="alert alert-danger">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Erro ao inserir PDF</h6>
+                            <p id="errorMessage" class="mb-0"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const pdfPrincipalInput = document.getElementById('pdf_principal');
+    const pdfInserirInput = document.getElementById('pdf_inserir');
+    const posicaoSelect = document.getElementById('posicao');
+    const paginaDiv = document.getElementById('pagina_div');
+    const form = document.getElementById('inserirPdfForm');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const error = document.getElementById('error');
+    const errorMessage = document.getElementById('errorMessage');
+    const btnInserir = document.getElementById('btnInserir');
+
+    // Mostrar/ocultar campo de página específica
+    posicaoSelect.addEventListener('change', function() {
+        if (this.value === 'pagina_especifica') {
+            paginaDiv.style.display = 'block';
+        } else {
+            paginaDiv.style.display = 'none';
+        }
+    });
+
+    // Enviar formulário
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const pdfPrincipal = pdfPrincipalInput.files[0];
+        const pdfInserir = pdfInserirInput.files[0];
+        
+        if (!pdfPrincipal) {
+            alert('Por favor, selecione o PDF principal.');
+            return;
+        }
+
+        if (!pdfInserir) {
+            alert('Por favor, selecione o PDF para inserir.');
+            return;
+        }
+
+        if (!pdfPrincipal.name.toLowerCase().endsWith('.pdf')) {
+            alert('Por favor, selecione apenas arquivos PDF para o PDF principal.');
+            return;
+        }
+
+        if (!pdfInserir.name.toLowerCase().endsWith('.pdf')) {
+            alert('Por favor, selecione apenas arquivos PDF para inserir.');
+            return;
+        }
+
+        // Mostrar loading
+        loading.style.display = 'block';
+        result.style.display = 'none';
+        error.style.display = 'none';
+        btnInserir.disabled = true;
+
+        // Criar FormData
+        const formData = new FormData();
+        formData.append('pdf_principal', pdfPrincipal);
+        formData.append('pdf_inserir', pdfInserir);
+        formData.append('posicao', posicaoSelect.value);
+        
+        if (posicaoSelect.value === 'pagina_especifica') {
+            formData.append('pagina_especifica', document.getElementById('pagina_especifica').value);
+        }
+
+        // Enviar requisição
+        fetch('/pdf/inserir', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            } else {
+                return response.json().then(data => {
+                    throw new Error(data.message || 'Erro ao inserir PDF');
+                });
+            }
+        })
+        .then(blob => {
+            // Criar link para download
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `pdf_inserido_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            // Mostrar sucesso
+            loading.style.display = 'none';
+            result.style.display = 'block';
+            btnInserir.disabled = false;
+        })
+        .catch(err => {
+            // Mostrar erro
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            errorMessage.textContent = err.message;
+            btnInserir.disabled = false;
+        });
+    });
+});
+</script>
+{% endblock %} 

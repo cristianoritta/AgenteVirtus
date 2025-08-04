@@ -1,0 +1,265 @@
+{% extends "layout/base.html" %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h5 class="card-title mb-4">Manipulação de PDFs</h5>
+            <p class="text-muted">Escolha uma das ferramentas abaixo para manipular seus arquivos PDF:</p>
+
+            <div class="row">
+                <!-- Unir PDFs -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-link fa-3x text-primary"></i>
+                            </div>
+                            <h5 class="card-title">Unir PDFs</h5>
+                            <p class="card-text text-muted">Combine vários arquivos PDF em um único documento.
+                            </p>
+                            <a href="/pdf/unir" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i>Unir PDFs
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Separar PDF -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-cut fa-3x text-success"></i>
+                            </div>
+                            <h5 class="card-title">Separar PDF</h5>
+                            <p class="card-text text-muted">Divida um PDF em vários arquivos por página ou
+                                tamanho.</p>
+                            <a href="/pdf/separar" class="btn btn-success btn-sm">
+                                <i class="fas fa-scissors me-1"></i>Separar PDF
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Girar PDF -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-redo fa-3x text-warning"></i>
+                            </div>
+                            <h5 class="card-title">Girar PDF</h5>
+                            <p class="card-text text-muted">Rotacione todas as páginas ou uma página específica.
+                            </p>
+                            <a href="/pdf/girar" class="btn btn-warning btn-sm">
+                                <i class="fas fa-rotate-right me-1"></i>Girar PDF
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dividir por Bookmarks -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-bookmark fa-3x text-info"></i>
+                            </div>
+                            <h5 class="card-title">Dividir por Bookmarks</h5>
+                            <p class="card-text text-muted">Divida um PDF usando os bookmarks como referência.
+                            </p>
+                            <a href="/pdf/bookmarks" class="btn btn-info btn-sm">
+                                <i class="fas fa-bookmark me-1"></i>Dividir por Bookmarks
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inserir PDF -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-plus-circle fa-3x text-primary"></i>
+                            </div>
+                            <h5 class="card-title">Inserir PDF</h5>
+                            <p class="card-text text-muted">Insira um PDF no início, meio ou final de outro PDF.
+                            </p>
+                            <a href="/pdf/inserir" class="btn btn-primary btn-sm">
+                                <i class="fas fa-plus-circle me-1"></i>Inserir PDF
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Extrair Texto -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-file-alt fa-3x text-secondary"></i>
+                            </div>
+                            <h5 class="card-title">Extrair Texto</h5>
+                            <p class="card-text text-muted">Extraia todo o texto de um arquivo PDF.</p>
+                            <a href="/pdf/extrair-texto" class="btn btn-secondary btn-sm">
+                                <i class="fas fa-file-text me-1"></i>Extrair Texto
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- OCR com IA -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-eye fa-3x text-info"></i>
+                            </div>
+                            <h5 class="card-title">OCR com IA</h5>
+                            <p class="card-text text-muted">Faça OCR em PDFs escaneados usando inteligência artificial.</p>
+                            <a href="/pdf/ocr" class="btn btn-info btn-sm">
+                                <i class="fas fa-eye me-1"></i>OCR com IA
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Resumir com IA -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-brain fa-3x text-purple"></i>
+                            </div>
+                            <h5 class="card-title">Resumir com IA</h5>
+                            <p class="card-text text-muted">Gere um resumo inteligente do conteúdo do PDF.</p>
+                            <a href="/pdf/resumir" class="btn btn-purple btn-sm">
+                                <i class="fas fa-robot me-1"></i>Resumir com IA
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Converter para Markdown -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-code fa-3x text-dark"></i>
+                            </div>
+                            <h5 class="card-title">PDF para Markdown</h5>
+                            <p class="card-text text-muted">Converta PDF em formato Markdown com IA.</p>
+                            <a href="/pdf/markdown" class="btn btn-dark btn-sm">
+                                <i class="fas fa-code me-1"></i>Converter para Markdown
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mapa Mental -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-sitemap fa-3x text-orange"></i>
+                            </div>
+                            <h5 class="card-title">Mapa Mental <span class="badge bg-danger">ARRUMAR</span></h5>
+                            <p class="card-text text-muted">Crie um mapa mental do conteúdo com IA.</p>
+                            <a href="/pdf/mapa-mental" class="btn btn-orange btn-sm">
+                                <i class="fas fa-sitemap me-1"></i>Criar Mapa Mental
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Converter para DOCX -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-file-word fa-3x text-primary"></i>
+                            </div>
+                            <h5 class="card-title">PDF para DOCX <span class="badge bg-danger">ARRUMAR</span></h5>
+                            <p class="card-text text-muted">Converta PDF em documento Word (.docx).</p>
+                            <a href="/pdf/docx" class="btn btn-primary btn-sm">
+                                <i class="fas fa-file-word me-1"></i>Converter para DOCX
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Converter para XLSX -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-file-excel fa-3x text-success"></i>
+                            </div>
+                            <h5 class="card-title">PDF para XLSX <span class="badge bg-danger">ARRUMAR</span></h5>
+                            <p class="card-text text-muted">Converta PDF em planilha Excel (.xlsx).</p>
+                            <a href="/pdf/xlsx" class="btn btn-success btn-sm">
+                                <i class="fas fa-file-excel me-1"></i>Converter para XLSX
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Converter para CSV -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body text-center">
+                            <div class="mb-3">
+                                <i class="fas fa-file-csv fa-3x text-info"></i>
+                            </div>
+                            <h5 class="card-title">PDF para CSV</h5>
+                            <p class="card-text text-muted">Converta PDF em arquivo CSV. <span class="badge bg-danger">ARRUMAR</span></p>
+                            <a href="/pdf/csv" class="btn btn-info btn-sm">
+                                <i class="fas fa-file-csv me-1"></i>Converter para CSV
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-purple {
+        background-color: #6f42c1;
+        border-color: #6f42c1;
+        color: white;
+    }
+
+    .btn-purple:hover {
+        background-color: #5a32a3;
+        border-color: #5a32a3;
+        color: white;
+    }
+
+    .btn-orange {
+        background-color: #fd7e14;
+        border-color: #fd7e14;
+        color: white;
+    }
+
+    .btn-orange:hover {
+        background-color: #e8690b;
+        border-color: #e8690b;
+        color: white;
+    }
+
+    .card {
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+    }
+
+    .fa-3x {
+        font-size: 3em;
+    }
+</style>
+{% endblock %}

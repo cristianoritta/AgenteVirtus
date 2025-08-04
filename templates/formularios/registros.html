@@ -117,6 +117,12 @@
                                                     <i class="fas fa-edit"></i>
                                                 </button>
                                                 <button type="button" 
+                                                        class="btn btn-outline-success" 
+                                                        onclick="criarNota({{ registro.id }})"
+                                                        title="Criar Nota">
+                                                    <i class="fas fa-sticky-note"></i>
+                                                </button>
+                                                <button type="button" 
                                                         class="btn btn-outline-danger" 
                                                         onclick="excluirRegistro({{ registro.id }})"
                                                         title="Excluir">
@@ -451,6 +457,80 @@ function excluirRegistro(registroId) {
             });
         });
     }
+}
+
+function criarNota(registroId) {
+    // Buscar dados do registro para criar a nota
+    fetch(`/api/formularios/{{ formulario.id }}/registros`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const registro = data.registros.find(r => r.id === registroId);
+                if (registro) {
+                    // Criar nota com os dados do registro
+                    fetch('/formularios/registros/criar-nota', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            registro_id: registroId,
+                            formulario_id: {{ formulario.id }},
+                            dados: registro.dados
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            Swal.fire({
+                                icon: 'success',
+                                title: 'Nota Criada!',
+                                text: data.message,
+                                timer: 2000,
+                                showConfirmButton: false
+                            }).then(() => {
+                                // Abrir a nota em nova aba
+                                window.open(`/notas/${data.nota_id}`, '_blank');
+                            });
+                        } else {
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Erro!',
+                                text: data.message
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Erro:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Erro!',
+                            text: 'Ocorreu um erro ao criar a nota.'
+                        });
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Erro!',
+                        text: 'Registro não encontrado.'
+                    });
+                }
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro!',
+                    text: 'Erro ao carregar dados do registro.'
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Erro!',
+                text: 'Ocorreu um erro ao carregar dados do registro.'
+            });
+        });
 }
 </script>
 

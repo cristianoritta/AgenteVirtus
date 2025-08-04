@@ -17,18 +17,20 @@
     <div class="card shadow mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">
-                <i class="fas fa-info-circle"></i> Informações da Execução
+                <i class="fas fa-info-circle"></i> Informações da Sprint #{{ execucao.sprint }}
             </h6>
         </div>
         <div class="card-body">
             <div class="row">
                 <div class="col-md-6">
                     <p><strong>Equipe:</strong> {{ execucao.equipe.nome }}</p>
-                    <p><strong>Data de Criação:</strong> {{ execucao.criado_em.strftime('%d/%m/%Y %H:%M:%S') }}</p>
-                    <p><strong>Última Atualização:</strong> {{ execucao.atualizado_em.strftime('%d/%m/%Y %H:%M:%S') }}</p>
+                    <p><strong>Sprint:</strong> {{ execucao.sprint }}</p>
+                    <p><strong>Total de Execuções:</strong> {{ execucoes_sprint|length }}</p>
+                    <p><strong>Data de Início:</strong> {{ execucoes_sprint[0].criado_em.strftime('%d/%m/%Y %H:%M:%S') }}</p>
+                    <p><strong>Última Atualização:</strong> {{ execucoes_sprint[-1].atualizado_em.strftime('%d/%m/%Y %H:%M:%S') }}</p>
                 </div>
                 <div class="col-md-6">
-                    <p><strong>ID da Execução:</strong> {{ execucao.id }}</p>
+                    <p><strong>ID da Execução Atual:</strong> {{ execucao.id }}</p>
                     <p><strong>Equipe ID:</strong> {{ execucao.equipe_id }}</p>
                 </div>
             </div>
@@ -51,16 +53,40 @@
     </div>
     {% endif %}
 
-    <!-- Resposta da Execução -->
+    <!-- Timeline da Sprint -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-success">
-                <i class="fas fa-check-circle"></i> Resposta da Execução
+                <i class="fas fa-history"></i> Timeline da Sprint
             </h6>
         </div>
         <div class="card-body">
-            <div class="bg-light p-3 rounded">
-                <pre class="mb-0" style="white-space: pre-wrap; font-family: 'Courier New', monospace;">{{ execucao.resposta }}</pre>
+            <div class="timeline">
+                {% for exec in execucoes_sprint %}
+                <div class="timeline-item mb-4 {% if exec.id == execucao.id %}bg-light{% endif %} p-3 rounded">
+                    <div class="d-flex justify-content-between mb-2">
+                        <h6 class="font-weight-bold">
+                            Execução #{{ exec.id }}
+                            {% if exec.id == execucao.id %}
+                            <span class="badge badge-primary">Atual</span>
+                            {% endif %}
+                        </h6>
+                        <small class="text-muted">{{ exec.criado_em.strftime('%d/%m/%Y %H:%M:%S') }}</small>
+                    </div>
+                    
+                    {% if exec.contexto %}
+                    <div class="mb-3">
+                        <strong class="text-info">Contexto:</strong>
+                        <pre class="mt-2" style="white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 0.85em;">{{ exec.contexto }}</pre>
+                    </div>
+                    {% endif %}
+                    
+                    <div>
+                        <strong class="text-success">Resposta:</strong>
+                        <pre class="mt-2" style="white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 0.85em;">{{ exec.resposta }}</pre>
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
     </div>
