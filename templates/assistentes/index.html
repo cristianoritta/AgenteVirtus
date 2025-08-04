@@ -29,7 +29,12 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="alert alert-info text-center">Nenhum assistente encontrado.</div>
+    <div class="alert alert-info text-center">
+        Nenhum assistente encontrado. <br>
+        <a href="{{ url_for('assistentes_novo') }}" class="btn btn-primary mt-3">
+            <i class="fas fa-plus"></i> Criar assistente
+        </a>
+    </div>
     {% endif %}
 </div>
 {% endblock %}
