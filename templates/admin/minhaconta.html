@@ -14,6 +14,10 @@
                     role="tab">APIs
                     de IA</button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="sistema-tab" data-bs-toggle="tab" data-bs-target="#sistema" type="button"
+                    role="tab">Sistema</button>
+            </li>
         </ul>
     </div>
     <div class="card-body">
@@ -144,6 +148,82 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="sistema" role="tabpanel">
+                <div class="card-body">
+                    <h5>Configurações do Sistema</h5>
+                    <div class="row">
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-database me-2"></i>
+                                        Backup do Banco de Dados
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <p class="text-muted">
+                                        Faça o download de uma cópia completa do banco de dados para backup.
+                                    </p>
+                                    <a href="/minhaconta/exportar-banco" class="btn btn-primary">
+                                        <i class="fas fa-download me-2"></i>
+                                        Exportar Banco de Dados
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-cog me-2"></i>
+                                        Configurar Banco de Dados
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <form action="/minhaconta/configurar-banco" method="post" id="form-config-banco">
+                                        <div class="form-group">
+                                            <label for="database_path">Caminho do Banco de Dados</label>
+                                            <input type="text" class="form-control" id="database_path" name="database_path" 
+                                                   placeholder="Ex: instance/agente_virtus.db" required>
+                                            <small class="form-text text-muted">
+                                                Caminho completo para o arquivo do banco de dados (.db)
+                                            </small>
+                                        </div>
+                                        <button type="submit" class="btn btn-warning mt-2">
+                                            <i class="fas fa-save me-2"></i>
+                                            Salvar Configuração
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        Informações do Sistema
+                                    </h6>
+                                </div>
+                                <div class="card-body">
+                                    <div id="system-info">
+                                        <div class="text-center">
+                                            <i class="fas fa-spinner fa-spin"></i> Carregando informações...
+                                        </div>
+                                    </div>
+                                    <button class="btn btn-info mt-2" onclick="carregarInfoSistema()">
+                                        <i class="fas fa-sync-alt me-2"></i>
+                                        Atualizar Informações
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -323,6 +403,88 @@
     });
     document.body.addEventListener('htmx:responseError', function (evt) {
         console.error('[HTMX] htmx:responseError', evt);
+    });
+
+    // Função para carregar informações do sistema
+    function carregarInfoSistema() {
+        const infoDiv = document.getElementById('system-info');
+        infoDiv.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+        
+        fetch('/minhaconta/info-sistema')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    infoDiv.innerHTML = `<div class="alert alert-danger">Erro: ${data.error}</div>`;
+                    return;
+                }
+                
+                const html = `
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-database me-2"></i>Banco de Dados</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Caminho:</strong> ${data.database.path}</li>
+                                <li><strong>Status:</strong> 
+                                    <span class="badge ${data.database.exists ? 'bg-success' : 'bg-danger'}">
+                                        ${data.database.exists ? 'Encontrado' : 'Não encontrado'}
+                                    </span>
+                                </li>
+                                <li><strong>Tamanho:</strong> ${data.database.size_formatted}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-chart-bar me-2"></i>Estatísticas</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Usuários:</strong> ${data.statistics.usuarios}</li>
+                                <li><strong>APIs de IA:</strong> ${data.statistics.apis_ia}</li>
+                                <li><strong>Equipes:</strong> ${data.statistics.equipes}</li>
+                                <li><strong>Execuções:</strong> ${data.statistics.execucoes}</li>
+                                <li><strong>Notas:</strong> ${data.statistics.notas}</li>
+                                <li><strong>Conversas:</strong> ${data.statistics.conversas}</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6><i class="fas fa-info-circle me-2"></i>Sistema</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Python:</strong> ${data.system.python_version.split(' ')[0]}</li>
+                                <li><strong>Data/Hora:</strong> ${new Date(data.system.current_time).toLocaleString('pt-BR')}</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+                
+                infoDiv.innerHTML = html;
+            })
+            .catch(error => {
+                infoDiv.innerHTML = `<div class="alert alert-danger">Erro ao carregar informações: ${error.message}</div>`;
+            });
+    }
+
+    // Função para carregar configuração atual do banco
+    function carregarConfigBanco() {
+        fetch('/minhaconta/configurar-banco')
+            .then(response => response.json())
+            .then(data => {
+                if (data.path) {
+                    document.getElementById('database_path').value = data.path;
+                }
+            })
+            .catch(error => {
+                console.error('Erro ao carregar configuração do banco:', error);
+            });
+    }
+
+    // Carregar informações quando a aba Sistema for ativada
+    document.addEventListener('DOMContentLoaded', function() {
+        const sistemaTab = document.getElementById('sistema-tab');
+        const sistemaPane = document.getElementById('sistema');
+        
+        sistemaTab.addEventListener('shown.bs.tab', function() {
+            carregarInfoSistema();
+            carregarConfigBanco();
+        });
     });
 </script>
 {% endblock %}

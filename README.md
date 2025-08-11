@@ -132,6 +132,12 @@ AgenteVirtus/
    flask db downgrade
    ```
 
+5.1 ** Atualização em 11/08/2025 **
+   # Executar as migrations de atualização do banco de dados
+   ```bash
+   python run_migration.py
+   ```
+
 6. **Executar a aplicação**:
    ```bash
    python app.py

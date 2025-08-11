@@ -21,7 +21,7 @@
                 </svg>
                 Criador de Agentes
             </a>
-            <div class="crew-settings">
+            <div class="crew-settings d-none" style="display: none;">
                 <span class="switch-label">Processo Sequencial</span>
                 <label class="switch">
                     <input type="checkbox" id="processType" checked>
@@ -29,7 +29,12 @@
                 </label>
                 <span class="switch-label">Processo Hierárquico</span>
             </div>
+            
             <div class="actions">
+                <button class="btn btn-primary" onclick="abrirModalCriarComIA()">
+                    <i class="fas fa-magic"></i>
+                    Criar com IA
+                </button>
                 <a href="/agentesinteligentes/executar_tarefas/{{ equipe_data.id }}" class="btn btn-success">
                     <span class="fas fa-play"></span>
                 </a>
@@ -307,7 +312,48 @@
         </div>
     </div>
 
+    <!-- Modal para Criar com IA -->
+    <div id="criarComIAModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Criar Fluxo com IA</h2>
+                <span class="close-modal" onclick="closeCriarComIAModal()">&times;</span>
+            </div>
+            <div id="criarComIAConfigForm">
+                <div class="form-group">
+                    <label for="promptIA">Descreva o fluxo que você deseja criar</label>
+                    <textarea id="promptIA" placeholder="Ex: Crie um fluxo para analisar dados de vendas e gerar relatórios automáticos. O fluxo deve incluir um trigger para receber dados, um agente analista, uma tarefa de processamento e um formato de saída em PDF." rows="6"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-secondary" onclick="closeCriarComIAModal()">Cancelar</button>
+                    <button class="btn btn-primary" onclick="criarFluxoComIA()">
+                        <i class="fas fa-magic"></i> Criar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/vendor/sweetalert/sweetalert.min.js"></script>
+
+    <style>
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .modal-actions .btn {
+            min-width: 100px;
+        }
+        
+        #promptIA {
+            width: 100%;
+            min-height: 120px;
+            resize: vertical;
+        }
+    </style>
 
     <!-- Dados da equipe carregados do servidor -->
     <div id="equipe-data" style="display: none;" data-equipe='{{ equipe_data|tojson|safe if equipe_data else "null" }}'>
@@ -815,6 +861,145 @@
             window.closeTemplateModal = function () {
                 document.getElementById('templateModal').style.display = 'none';
                 currentNodeBeingConfigured = null;
+            }
+
+            // Funções para o modal de criar com IA
+            window.abrirModalCriarComIA = function () {
+                document.getElementById('promptIA').value = '';
+                document.getElementById('criarComIAModal').style.display = 'block';
+            }
+
+            window.closeCriarComIAModal = function () {
+                document.getElementById('criarComIAModal').style.display = 'none';
+            }
+
+            window.criarFluxoComIA = async function () {
+                const prompt = document.getElementById('promptIA').value.trim();
+                
+                if (!prompt) {
+                    swal("Erro!", "Por favor, descreva o fluxo que você deseja criar.", "error");
+                    return;
+                }
+
+                // Mostrar loading
+                swal({
+                    title: "Criando fluxo com IA...",
+                    text: "Aguarde enquanto a IA analisa seu prompt e cria o fluxo.",
+                    icon: "info",
+                    buttons: false,
+                    closeOnClickOutside: false,
+                    closeOnEsc: false
+                });
+
+                try {
+                    const response = await fetch('/agentesinteligentes/criar_fluxo_com_ia', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            prompt: prompt,
+                            equipe_id: {{ equipe_data.id if equipe_data else 'null' }}
+                        })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.status === 'success') {
+                        // Fechar modal
+                        closeCriarComIAModal();
+                        
+                        // Limpar canvas atual
+                        nodes = [];
+                        connections = [];
+                        canvas.innerHTML = '';
+                        
+                        // Recriar o SVG layer
+                        const svgLayer = document.createElementNS(svgNS, "svg");
+                        svgLayer.setAttribute('id', 'connection-layer');
+                        svgLayer.style.position = 'absolute';
+                        svgLayer.style.left = '0';
+                        svgLayer.style.top = '0';
+                        svgLayer.style.width = '100%';
+                        svgLayer.style.height = '100%';
+                        svgLayer.style.zIndex = '1';
+                        svgLayer.style.pointerEvents = 'none';
+                        canvas.appendChild(svgLayer);
+
+                        // Aplicar o novo layout
+                        if (data.layout && data.layout.nodes) {
+                            data.layout.nodes.forEach(nodeData => {
+                                const nodeId = createNodeFromData(nodeData);
+                                if (nodeData.config) {
+                                    const node = nodes.find(n => n.id === nodeId);
+                                    if (node) {
+                                        node.config = nodeData.config;
+                                    }
+                                }
+                            });
+                        }
+
+                        if (data.layout && data.layout.connections) {
+                            connections = data.layout.connections;
+                            updateConnections();
+                        }
+
+                        swal("Sucesso!", "Fluxo criado com IA com sucesso!", "success");
+                    } else {
+                        swal("Erro!", `Erro ao criar fluxo: ${data.message}`, "error");
+                    }
+                } catch (error) {
+                    swal("Erro!", `Erro ao criar fluxo: ${error.message}`, "error");
+                }
+            }
+
+            // Função auxiliar para criar nó a partir de dados
+            function createNodeFromData(nodeData) {
+                const nodeId = nodeData.id || `node-${nodeCounter++}`;
+                const nodeX = nodeData.x || 100;
+                const nodeY = nodeData.y || 100;
+                const type = nodeData.type;
+
+                const nodeTypes = {
+                    'agent': { icon: 'A', color: '#3b82f6' },
+                    'task': { icon: 'T', color: '#10b981' },
+                    'trigger': { icon: 'T', color: '#ef4444' },
+                    'guardrail': { icon: 'G', color: '#f59e0b' },
+                    'formatoSaida': { icon: 'F', color: '#8b5cf6' },
+                    'template': { icon: 'T', color: '#06b6d4' }
+                };
+
+                const nodeType = nodeTypes[type] || { icon: '?', color: '#6b7280' };
+
+                const nodeElement = document.createElement('div');
+                nodeElement.className = 'node';
+                nodeElement.id = nodeId;
+                nodeElement.style.left = nodeX + 'px';
+                nodeElement.style.top = nodeY + 'px';
+                nodeElement.style.backgroundColor = nodeType.color;
+                nodeElement.setAttribute('data-type', type);
+
+                nodeElement.innerHTML = `
+                    <div class="node-icon">${nodeType.icon}</div>
+                    <div class="node-label">${type}</div>
+                    <div class="node-ports">
+                        <div class="port port-in" data-port="in"></div>
+                        <div class="port port-out" data-port="out"></div>
+                    </div>
+                `;
+
+                canvas.appendChild(nodeElement);
+
+                const node = {
+                    id: nodeId,
+                    type: type,
+                    element: nodeElement,
+                    config: nodeData.config || {}
+                };
+
+                nodes.push(node);
+                return nodeId;
             }
 
             window.saveAgentConfig = function () {

@@ -4,7 +4,8 @@ from flask import jsonify
 from services.ConversaService import ConversaService
 from models.models import ApiIa
 from dotenv import load_dotenv
-from openai import OpenAI  
+from openai import OpenAI
+from utils.api_utils import make_post_request_with_retry  
 
 load_dotenv()
 
@@ -29,15 +30,23 @@ def configurar_openai_client(api):
     if not base_url.endswith("/v1"):
         # Garante que termina em /v1
         base_url += "/v1"
+    # Se o endpoint for localhost, mantem o endpoint original
+    if base_url.startswith("http://localhost"):
+        base_url = api.endpoint
 
     # --- cria o cliente OpenAI ----------------------------------------------
     # Usar uma abordagem mais robusta para evitar conflitos de argumentos
     try:
         # Primeira tentativa: configuração básica
-        client = OpenAI(
-            api_key = api.api_key,
-            base_url = base_url
-        )
+        if api.api_key == "":
+            client = OpenAI(
+                base_url = base_url
+            )
+        else:
+            client = OpenAI(
+                api_key = api.api_key,
+                base_url = base_url
+            )
     except TypeError as e:
         if "proxies" in str(e):
             # Se o erro for de proxies, tentar sem configurações extras
@@ -165,7 +174,11 @@ def groq_openai_requests(api_ia, historico, conversa):
             "messages": historico
         }
         
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response = make_post_request_with_retry(
+            url=url,
+            headers=headers,
+            json_data=payload
+        )
         
         if response.status_code == 200:
             data = response.json()
@@ -202,12 +215,12 @@ def groq_openai_requests(api_ia, historico, conversa):
     except requests.exceptions.Timeout:
         return jsonify({
             'status': 'error',
-            'message': 'Timeout na requisição'
+            'message': 'Timeout na requisição após todas as tentativas'
         }), 500
     except requests.exceptions.ConnectionError:
         return jsonify({
             'status': 'error',
-            'message': 'Erro de conexão'
+            'message': 'Erro de conexão após todas as tentativas'
         }), 500
     except Exception as e:
         return jsonify({
@@ -221,10 +234,105 @@ def groq_openai(api_ia, historico, conversa):
     """
     return groq_openai_requests(api_ia, historico, conversa)
 
+def groq_ollama(api_ia, historico, conversa):
+    """
+    Função específica para processar requisições Ollama
+    """
+    try:
+        # Construir a URL completa para Ollama
+        url = f"{api_ia.endpoint}"
+        
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        
+        # Converter histórico para formato Ollama (simples)
+        # Ollama usa apenas o prompt, então vamos concatenar as mensagens
+        prompt = ""
+        for msg in historico:
+            if msg['role'] == 'user':
+                prompt += f"Usuário: {msg['content']}\n"
+            elif msg['role'] == 'assistant':
+                prompt += f"Assistente: {msg['content']}\n"
+        
+        # Adicionar a última mensagem do usuário
+        if historico and historico[-1]['role'] == 'user':
+            prompt += f"Usuário: {historico[-1]['content']}\nAssistente:"
+        
+        payload = {
+            "model": api_ia.modelo_chat,
+            "prompt": prompt,
+            "stream": False
+        }
+        
+        response = make_post_request_with_retry(
+            url=url,
+            headers=headers,
+            json_data=payload
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'response' in data:
+                resposta_ia = data['response']
+                
+                # Adicionar resposta da IA à conversa
+                ConversaService.adicionar_mensagem(conversa.id, 'assistant', resposta_ia)
+                
+                return jsonify({
+                    'status': 'success',
+                    'resultado': {
+                        'choices': [{
+                            'message': {
+                                'content': resposta_ia
+                            }
+                        }]
+                    },
+                    'resposta': resposta_ia,
+                    'conversa_id': conversa.id,
+                    'hash_conversa': conversa.hash_conversa
+                }), 200
+            else:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Resposta da API não contém dados válidos'
+                }), 500
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': f'Erro na requisição: {response.status_code} - {response.text}'
+            }), 500
+            
+    except requests.exceptions.Timeout:
+        return jsonify({
+            'status': 'error',
+            'message': 'Timeout na requisição após todas as tentativas'
+        }), 500
+    except requests.exceptions.ConnectionError:
+        return jsonify({
+            'status': 'error',
+            'message': 'Erro de conexão após todas as tentativas'
+        }), 500
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': f'Erro inesperado: {str(e)}'
+        }), 500
+
 def groq(prompt, conversa_id=None, hash_conversa=None):
     # Fazer requisição para a API ativa
     
+    print("=== INICIANDO groq ===")
     api_ia = api_ativa()
+    
+    if not api_ia:
+        print("Erro: Nenhuma API ativa encontrada")
+        return jsonify({
+            'status': 'error',
+            'message': 'Nenhuma API ativa encontrada'
+        }), 500
+    
+    print(f"API ativa encontrada: {api_ia.nome} - {api_ia.endpoint}")
     
     try:
         # Buscar ou criar conversa
@@ -238,6 +346,8 @@ def groq(prompt, conversa_id=None, hash_conversa=None):
             # Criar nova conversa
             conversa = ConversaService.criar_conversa(tipo_conversa='chatbot')
         
+        print(f"Conversa ID: {conversa.id}")
+        
         # Adicionar mensagem do usuário
         ConversaService.adicionar_mensagem(conversa.id, 'user', prompt)
         
@@ -246,13 +356,34 @@ def groq(prompt, conversa_id=None, hash_conversa=None):
         
         # Detectar tipo de API e usar método apropriado
         tipo_api = detectar_tipo_api(api_ia)
+        print(f"Tipo de API detectado: {tipo_api}")
         
         if tipo_api == 'gemini':
-            return groq_gemini(api_ia, historico, conversa)
+            print("Chamando groq_gemini...")
+            response_tuple = groq_gemini(api_ia, historico, conversa)
+            # Extrair o JSON do tuple (response, status_code)
+            if isinstance(response_tuple, tuple) and len(response_tuple) == 2:
+                return response_tuple[0].get_json()
+            return response_tuple
+        elif tipo_api == 'ollama':
+            print("Chamando groq_ollama...")
+            response_tuple = groq_ollama(api_ia, historico, conversa)
+            # Extrair o JSON do tuple (response, status_code)
+            if isinstance(response_tuple, tuple) and len(response_tuple) == 2:
+                return response_tuple[0].get_json()
+            return response_tuple
         else:
-            return groq_openai(api_ia, historico, conversa)
+            print("Chamando groq_openai...")
+            response_tuple = groq_openai(api_ia, historico, conversa)
+            # Extrair o JSON do tuple (response, status_code)
+            if isinstance(response_tuple, tuple) and len(response_tuple) == 2:
+                return response_tuple[0].get_json()
+            return response_tuple
 
     except Exception as e:
+        print(f"Erro em groq: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({
             'status': 'error',
             'message': f'Erro ao processar requisição: {str(e)}'
@@ -286,7 +417,12 @@ def groq_transcrever_openai_requests(api_ia, file, conversa):
             'temperature': '0.5'
         }
         
-        response = requests.post(url, headers=headers, files=files, data=data, timeout=30)
+        response = make_post_request_with_retry(
+            url=url,
+            headers=headers,
+            files=files,
+            data=data
+        )
         
         if response.status_code == 200:
             data = response.json()
@@ -310,12 +446,12 @@ def groq_transcrever_openai_requests(api_ia, file, conversa):
     except requests.exceptions.Timeout:
         return {
             'status': 'error',
-            'message': 'Timeout na requisição'
+            'message': 'Timeout na requisição após todas as tentativas'
         }
     except requests.exceptions.ConnectionError:
         return {
             'status': 'error',
-            'message': 'Erro de conexão'
+            'message': 'Erro de conexão após todas as tentativas'
         }
     except Exception as e:
         return {
@@ -538,12 +674,95 @@ def testar_openai_api_requests(api):
             "max_tokens": 50
         }
         
-        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        response = make_post_request_with_retry(
+            url=url,
+            headers=headers,
+            json_data=payload
+        )
         
         if response.status_code == 200:
             data = response.json()
             if 'choices' in data and len(data['choices']) > 0:
                 resposta = data['choices'][0]['message']['content']
+                return {
+                    'status': 'success',
+                    'api_nome': api.nome,
+                    'endpoint': api.endpoint,
+                    'modelo': api.modelo_chat,
+                    'resposta': resposta
+                }
+            else:
+                return {
+                    'status': 'error',
+                    'message': 'Resposta da API não contém dados válidos',
+                    'api_nome': api.nome,
+                    'endpoint': api.endpoint,
+                    'modelo': api.modelo_chat
+                }
+        else:
+            return {
+                'status': 'error',
+                'message': f'Erro na requisição: {response.status_code} - {response.text}',
+                'api_nome': api.nome,
+                'endpoint': api.endpoint,
+                'modelo': api.modelo_chat
+            }
+            
+    except requests.exceptions.Timeout:
+        return {
+            'status': 'error',
+            'message': 'Timeout na requisição após todas as tentativas',
+            'api_nome': api.nome,
+            'endpoint': api.endpoint,
+            'modelo': api.modelo_chat
+        }
+    except requests.exceptions.ConnectionError:
+        return {
+            'status': 'error',
+            'message': 'Erro de conexão após todas as tentativas',
+            'api_nome': api.nome,
+            'endpoint': api.endpoint,
+            'modelo': api.modelo_chat
+        }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'message': f'Erro inesperado: {str(e)}',
+            'api_nome': api.nome,
+            'endpoint': api.endpoint,
+            'modelo': api.modelo_chat
+        }
+
+def testar_openai_api(api):
+    """
+    Testa uma API OpenAI/Groq usando requests (versão segura)
+    """
+    return testar_openai_api_requests(api)
+
+def testar_ollama_api(api):
+    """
+    Testa uma API Ollama usando requests
+    """
+    try:
+        # Construir a URL completa para Ollama
+        url = f"{api.endpoint}"
+        
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            "model": api.modelo_chat,
+            "prompt": "Olá! Responda apenas com 'API funcionando corretamente!'",
+            "stream": False
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'response' in data:
+                resposta = data['response']
                 return {
                     'status': 'success',
                     'api_nome': api.nome,
@@ -593,12 +812,6 @@ def testar_openai_api_requests(api):
             'modelo': api.modelo_chat
         }
 
-def testar_openai_api(api):
-    """
-    Testa uma API OpenAI/Groq usando requests (versão segura)
-    """
-    return testar_openai_api_requests(api)
-
 def detectar_tipo_api(api):
     """
     Detecta o tipo de API baseado no endpoint
@@ -611,6 +824,8 @@ def detectar_tipo_api(api):
         return 'openai'
     elif 'groq.com' in endpoint:
         return 'groq'
+    elif 'localhost:11434' in endpoint or 'ollama' in endpoint:
+        return 'ollama'
     else:
         # Para APIs desconhecidas, tenta usar OpenAI primeiro
         return 'openai'
@@ -630,18 +845,30 @@ def testar_api_especifica(api_id):
             }
         
         # Verificar se a API tem as configurações necessárias
-        if not api.api_key or not api.endpoint or not api.modelo_chat:
-            return {
-                'status': 'error',
-                'message': 'API não configurada corretamente. Verifique API Key, Endpoint e Modelo Chat.',
-                'api_nome': api.nome
-            }
+        tipo_api = detectar_tipo_api(api)
+        
+        # Para APIs locais como Ollama, não precisamos de API key
+        if tipo_api == 'ollama':
+            if not api.endpoint or not api.modelo_chat:
+                return {
+                    'status': 'error',
+                    'message': 'API não configurada corretamente. Verifique Endpoint e Modelo Chat.',
+                    'api_nome': api.nome
+                }
+        else:
+            if not api.api_key or not api.endpoint or not api.modelo_chat:
+                return {
+                    'status': 'error',
+                    'message': 'API não configurada corretamente. Verifique API Key, Endpoint e Modelo Chat.',
+                    'api_nome': api.nome
+                }
         
         # Detectar tipo de API e usar método apropriado
-        tipo_api = detectar_tipo_api(api)
         
         if tipo_api == 'gemini':
             return testar_gemini_api(api)
+        elif tipo_api == 'ollama':
+            return testar_ollama_api(api)
         else:
             return testar_openai_api(api)
 
@@ -824,6 +1051,79 @@ def testar_openai_chatbot(api, mensagem):
     """
     return testar_openai_chatbot_requests(api, mensagem)
 
+def testar_ollama_chatbot(api, mensagem):
+    """
+    Testa o chatbot Ollama com uma mensagem específica
+    """
+    try:
+        # Construir a URL completa para Ollama
+        url = f"{api.endpoint}"
+        
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        
+        payload = {
+            "model": api.modelo_chat,
+            "prompt": mensagem,
+            "stream": False
+        }
+        
+        response = requests.post(url, headers=headers, json=payload, timeout=30)
+        
+        if response.status_code == 200:
+            data = response.json()
+            if 'response' in data:
+                resposta = data['response']
+                return {
+                    'status': 'success',
+                    'api_nome': api.nome,
+                    'endpoint': api.endpoint,
+                    'modelo': api.modelo_chat,
+                    'resposta': resposta
+                }
+            else:
+                return {
+                    'status': 'error',
+                    'message': 'Resposta da API não contém dados válidos',
+                    'api_nome': api.nome,
+                    'endpoint': api.endpoint,
+                    'modelo': api.modelo_chat
+                }
+        else:
+            return {
+                'status': 'error',
+                'message': f'Erro na requisição: {response.status_code} - {response.text}',
+                'api_nome': api.nome,
+                'endpoint': api.endpoint,
+                'modelo': api.modelo_chat
+            }
+            
+    except requests.exceptions.Timeout:
+        return {
+            'status': 'error',
+            'message': 'Timeout na requisição',
+            'api_nome': api.nome,
+            'endpoint': api.endpoint,
+            'modelo': api.modelo_chat
+        }
+    except requests.exceptions.ConnectionError:
+        return {
+            'status': 'error',
+            'message': 'Erro de conexão',
+            'api_nome': api.nome,
+            'endpoint': api.endpoint,
+            'modelo': api.modelo_chat
+        }
+    except Exception as e:
+        return {
+            'status': 'error',
+            'message': f'Erro inesperado: {str(e)}',
+            'api_nome': api.nome,
+            'endpoint': api.endpoint,
+            'modelo': api.modelo_chat
+        }
+
 def testar_chatbot(mensagem):
     """
     Testa o chatbot com uma mensagem específica usando abordagem híbrida
@@ -839,18 +1139,30 @@ def testar_chatbot(mensagem):
             }
         
         # Verificar se a API tem as configurações necessárias
-        if not api.api_key or not api.endpoint or not api.modelo_chat:
-            return {
-                'status': 'error',
-                'message': 'API não configurada corretamente. Verifique API Key, Endpoint e Modelo Chat.',
-                'api_nome': api.nome
-            }
+        tipo_api = detectar_tipo_api(api)
+        
+        # Para APIs locais como Ollama, não precisamos de API key
+        if tipo_api == 'ollama':
+            if not api.endpoint or not api.modelo_chat:
+                return {
+                    'status': 'error',
+                    'message': 'API não configurada corretamente. Verifique Endpoint e Modelo Chat.',
+                    'api_nome': api.nome
+                }
+        else:
+            if not api.api_key or not api.endpoint or not api.modelo_chat:
+                return {
+                    'status': 'error',
+                    'message': 'API não configurada corretamente. Verifique API Key, Endpoint e Modelo Chat.',
+                    'api_nome': api.nome
+                }
         
         # Detectar tipo de API e usar método apropriado
-        tipo_api = detectar_tipo_api(api)
         
         if tipo_api == 'gemini':
             return testar_gemini_chatbot(api, mensagem)
+        elif tipo_api == 'ollama':
+            return testar_ollama_chatbot(api, mensagem)
         else:
             return testar_openai_chatbot(api, mensagem)
 
@@ -879,18 +1191,30 @@ def testar_api_ia():
             }
         
         # Verificar se a API tem as configurações necessárias
-        if not api.api_key or not api.endpoint or not api.modelo_chat:
-            return {
-                'status': 'error',
-                'message': 'API não configurada corretamente. Verifique API Key, Endpoint e Modelo Chat.',
-                'api_nome': api.nome
-            }
+        tipo_api = detectar_tipo_api(api)
+        
+        # Para APIs locais como Ollama, não precisamos de API key
+        if tipo_api == 'ollama':
+            if not api.endpoint or not api.modelo_chat:
+                return {
+                    'status': 'error',
+                    'message': 'API não configurada corretamente. Verifique Endpoint e Modelo Chat.',
+                    'api_nome': api.nome
+                }
+        else:
+            if not api.api_key or not api.endpoint or not api.modelo_chat:
+                return {
+                    'status': 'error',
+                    'message': 'API não configurada corretamente. Verifique API Key, Endpoint e Modelo Chat.',
+                    'api_nome': api.nome
+                }
         
         # Detectar tipo de API e usar método apropriado
-        tipo_api = detectar_tipo_api(api)
         
         if tipo_api == 'gemini':
             return testar_gemini_api(api)
+        elif tipo_api == 'ollama':
+            return testar_ollama_api(api)
         else:
             return testar_openai_api(api)
 

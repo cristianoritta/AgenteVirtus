@@ -19,6 +19,7 @@ from io import BytesIO
 import pandas as pd
 from sqlalchemy import LargeBinary
 import matplotlib.pyplot as plt
+import time
 
 
 class AgentesController:
@@ -109,23 +110,22 @@ class AgentesController:
 
         # Tipo de Equipe
         tipo_equipe = layout['nodes'][0]['config']['type']
+        
+        # Obter o usuário atual
+        usuario = Usuario.query.get(1)
+
+        texto = f"""<meta_parametros>
+        Meu nome: {usuario.nome}
+        Meu email: {usuario.email}
+        Data: {datetime.now().strftime('%d/%m/%Y')}
+        Hora: {datetime.now().strftime('%H:%M:%S')}
+        </meta_parametros>
+        """
 
         # Imprimir o arquivo recebido
         if request.method == 'POST':
 
-            respostas = []
-
-            # Obter o usuário atual
-            usuario = Usuario.query.get(1)
-
-            texto = f"""<meta_parametros>
-            Meu nome: {usuario.nome}
-            Meu email: {usuario.email}
-            Data: {datetime.now().strftime('%d/%m/%Y')}
-            Hora: {datetime.now().strftime('%H:%M:%S')}
-            </meta_parametros>
-            
-            """
+            respostas = []            
 
             # Obter o último número de sprint para esta equipe
             ultima_execucao = ExecucaoEquipe.query.filter_by(equipe_id=equipe_id).order_by(ExecucaoEquipe.sprint.desc()).first()
@@ -144,6 +144,9 @@ class AgentesController:
             ########################################################################################
             # TRIGGER
             ########################################################################################
+            
+            print(f"*** Iniciando a execução. Lendo o trigger {tipo_equipe} ***")
+            
             if tipo_equipe == 'text':
                 texto += request.form['texto']
 
@@ -152,8 +155,6 @@ class AgentesController:
                 Nós que contém arquivos
                 """
                 arquivo = request.files['arquivo']
-                print(arquivo)
-                print(tipo_equipe)  
 
                 if tipo_equipe == 'pdf':
                     # Ler o conteúdo do arquivo diretamente do objeto FileStorage
@@ -170,7 +171,8 @@ class AgentesController:
                         temp_audio_path = temp_file.name  # Caminho do arquivo temporário
 
                     with open(temp_audio_path, "rb") as file:
-                        texto = IaController.groq_transcrever(file)
+                        transcricao = IaController.groq_transcrever(file)
+                        texto = transcricao['transcricao']
                     
                     # Limpar arquivo temporário
                     try:
@@ -273,6 +275,8 @@ Colunas: {', '.join(df.columns.tolist())}
                 nos_entrada = set()
                 nos_saida = set()
                 
+                print("Determinando a ordem de execução da equipe...")
+                
                 # Inicializar o grafo
                 for node in nodes:
                     grafo[node['id']] = {'dependencias': set(), 'dependentes': set()}
@@ -332,6 +336,7 @@ Colunas: {', '.join(df.columns.tolist())}
             
             # Processar cada nó na ordem determinada pelas conexões
             for node_id in ordem_execucao:
+                
                 # Encontrar o nó correspondente
                 node = None
                 for n in layout['nodes']:
@@ -343,6 +348,9 @@ Colunas: {', '.join(df.columns.tolist())}
                     continue
                 
                 if node['type'] == 'agent':
+                    
+                    print(f"*** Iniciando o 'agent' {node['id']} ***")
+                    
                     # Montar o prompt para o agente
                     prompt = f"""{node['config']['backstory']}
                     ### TAREFA ###
@@ -374,6 +382,17 @@ Colunas: {', '.join(df.columns.tolist())}
 
                     if isinstance(resultado_data, dict) and 'resposta' in resultado_data:
                         resposta_texto = resultado_data['resposta']
+                        # Garantir que resposta_texto seja sempre uma string
+                        if isinstance(resposta_texto, dict):
+                            # Se resposta_texto for um dicionário, extrair o conteúdo de texto
+                            if 'content' in resposta_texto:
+                                resposta_texto = resposta_texto['content']
+                            elif 'message' in resposta_texto and isinstance(resposta_texto['message'], dict) and 'content' in resposta_texto['message']:
+                                resposta_texto = resposta_texto['message']['content']
+                            else:
+                                resposta_texto = str(resposta_texto)
+                        elif not isinstance(resposta_texto, str):
+                            resposta_texto = str(resposta_texto)
                     else:
                         resposta_texto = str(resultado_data)
 
@@ -388,7 +407,39 @@ Colunas: {', '.join(df.columns.tolist())}
                     db.session.commit()
 
                     print(f"DEBUG - Resposta do agente {node['id']}: {resposta_texto[:200]}...")
-                    texto += f'<node_{node["id"]}>{resposta_texto}</node_{node["id"]}>\n\n\n'
+                    print(f"DEBUG - Tipo de resposta_texto: {type(resposta_texto)}")
+                    print(f"DEBUG - Conteúdo completo de resposta_texto: {resposta_texto}")
+                    
+                    # Garantir que resposta_texto seja sempre uma string antes da concatenação
+                    if isinstance(resposta_texto, dict):
+                        print(f"DEBUG - resposta_texto é um dicionário, convertendo para string")
+                        if 'content' in resposta_texto:
+                            resposta_texto = resposta_texto['content']
+                        elif 'message' in resposta_texto and isinstance(resposta_texto['message'], dict) and 'content' in resposta_texto['message']:
+                            resposta_texto = resposta_texto['message']['content']
+                        else:
+                            resposta_texto = str(resposta_texto)
+                    elif not isinstance(resposta_texto, str):
+                        print(f"DEBUG - resposta_texto não é string, convertendo: {type(resposta_texto)}")
+                        resposta_texto = str(resposta_texto)
+                    
+                    node_id = node['id']
+                    
+                    print(f"DEBUG - type resposta_texto: {type(resposta_texto)}")
+                    print(f"DEBUG - resposta_texto: {resposta_texto}")
+                    print(f"DEBUG - node_id: {node_id}")
+                    
+
+                    print("*"*100)
+                    print(type(resposta_texto))
+                    print(resposta_texto)
+                    print("*"*100)
+                    print(type(texto))
+                    print(texto)
+                    print("*"*100)
+                    
+                    
+                    texto += f'{resposta_texto}\n\n\n'
                     respostas.append({
                         'resposta': resposta_texto,
                         'node': node
@@ -537,10 +588,15 @@ resultado = executar_codigo('''{texto_entrada}''')
                                 # Atualizar o texto para o próximo agente/task
                                 texto += '\n\n ########' + str(resultado_task)
 
+                    time.sleep(1)
+
+
                 ########################################################################################
                 # TAREFA (Tarefas não conectadas a agentes)
                 ########################################################################################
                 if node['type'] == 'task' and not any(c['startPort'] == 'tasks' and c['endNode'] == node['id'] for c in layout['connections']):
+                    print(f"*** Iniciando a tarefa (task) {node['id']} ***")
+                    
                     # Obter a última resposta e garantir que seja uma string
                     ultima_resposta = respostas[-1]['resposta']
 
@@ -660,6 +716,8 @@ resultado = executar_codigo('''{texto_entrada}''')
                     texto += '\n\n ########' + str(resultado_task)
 
                 if node['type'] == 'guardrail':
+                    print(f"*** Iniciando o guardrail {node['id']} ***")
+                    
                     # Montar o prompt para o guardrail
                     prompt = f"""### GUARDRAIL ###
                     <tarefa>
@@ -699,6 +757,17 @@ resultado = executar_codigo('''{texto_entrada}''')
 
                     if isinstance(resultado_data, dict) and 'resposta' in resultado_data:
                         resposta_texto = resultado_data['resposta']
+                        # Garantir que resposta_texto seja sempre uma string
+                        if isinstance(resposta_texto, dict):
+                            # Se resposta_texto for um dicionário, extrair o conteúdo de texto
+                            if 'content' in resposta_texto:
+                                resposta_texto = resposta_texto['content']
+                            elif 'message' in resposta_texto and isinstance(resposta_texto['message'], dict) and 'content' in resposta_texto['message']:
+                                resposta_texto = resposta_texto['message']['content']
+                            else:
+                                resposta_texto = str(resposta_texto)
+                        elif not isinstance(resposta_texto, str):
+                            resposta_texto = str(resposta_texto)
                     else:
                         resposta_texto = str(resultado_data)
 
@@ -711,6 +780,22 @@ resultado = executar_codigo('''{texto_entrada}''')
                     )
                     db.session.add(execucao_guardrail)
                     db.session.commit()
+
+                    print(f"DEBUG - Guardrail {node['id']} - Tipo de resposta_texto: {type(resposta_texto)}")
+                    print(f"DEBUG - Guardrail {node['id']} - Conteúdo completo de resposta_texto: {resposta_texto}")
+                    
+                    # Garantir que resposta_texto seja sempre uma string antes da concatenação
+                    if isinstance(resposta_texto, dict):
+                        print(f"DEBUG - Guardrail {node['id']} - resposta_texto é um dicionário, convertendo para string")
+                        if 'content' in resposta_texto:
+                            resposta_texto = resposta_texto['content']
+                        elif 'message' in resposta_texto and isinstance(resposta_texto['message'], dict) and 'content' in resposta_texto['message']:
+                            resposta_texto = resposta_texto['message']['content']
+                        else:
+                            resposta_texto = str(resposta_texto)
+                    elif not isinstance(resposta_texto, str):
+                        print(f"DEBUG - Guardrail {node['id']} - resposta_texto não é string, convertendo: {type(resposta_texto)}")
+                        resposta_texto = str(resposta_texto)
 
                     texto += f'<node_{node["id"]}>{resposta_texto}</node_{node["id"]}>\n\n\n'
                     respostas.append({
@@ -870,6 +955,12 @@ resultado = executar_codigo('''{texto_entrada}''')
     def deletar_equipe(id):
         """Deleta uma equipe"""
         try:
+            
+            # Apaga todas as execuções da equipe
+            ExecucaoEquipe.query.filter_by(equipe_id=id).delete()
+            db.session.commit()
+            
+            # Apaga a equipe
             equipe = EquipeInteligente.query.get(id)
             db.session.delete(equipe)
             db.session.commit()
@@ -1098,6 +1189,8 @@ resultado = executar_codigo('''{texto_entrada}''')
                 if n['id'] == node_id and n['type'] == 'formatoSaida':
                     node = n
                     break
+            
+            print(node)
 
             if not node:
                 return jsonify({'error': 'Nó formatoSaida não encontrado'}), 404
@@ -1329,3 +1422,151 @@ resultado = executar_codigo('''{texto_entrada}''')
         except Exception as e:
             print(f"Erro ao exportar execuções: {e}")
             return jsonify({'status': 'error', 'message': f'Erro ao exportar execuções: {str(e)}'}), 500
+
+    @staticmethod
+    def criar_fluxo_com_ia():
+        """Cria um fluxo usando IA baseado em um prompt"""
+        try:
+            print("=== INICIANDO criar_fluxo_com_ia ===")
+            data = request.get_json()
+            prompt = data.get('prompt')
+            equipe_id = data.get('equipe_id')
+
+            print(f"Prompt recebido: {prompt}")
+            print(f"Equipe ID: {equipe_id}")
+
+            if not prompt:
+                return jsonify({'status': 'error', 'message': 'Prompt é obrigatório'}), 400
+
+            # Buscar 5 exemplos de equipes para usar como referência
+            exemplos = EquipeInteligente.query.limit(5).all()
+            print(f"Encontrados {len(exemplos)} exemplos de equipes")
+            
+            # Criar contexto com exemplos
+            exemplos_contexto = []
+            for exemplo in exemplos:
+                layout_data = json.loads(exemplo.layout) if exemplo.layout else {'nodes': [], 'connections': []}
+                exemplos_contexto.append({
+                    'nome': exemplo.nome,
+                    'descricao': exemplo.descricao,
+                    'layout': layout_data
+                })
+
+            # Criar prompt para a IA
+            prompt_ia = f"""
+Você é um especialista em criar fluxos de agentes inteligentes. Com base no prompt do usuário, crie um layout JSON que represente um fluxo de trabalho.
+
+Prompt do usuário: {prompt}
+
+Exemplos de fluxos existentes para referência:
+{json.dumps(exemplos_contexto, indent=2)}
+
+Crie um layout JSON com a seguinte estrutura:
+{{
+    "nodes": [
+        {{
+            "id": "node-1",
+            "type": "trigger",
+            "x": 100,
+            "y": 100,
+            "config": {{
+                "nome": "Trigger de Entrada",
+                "descricao": "Descrição do trigger"
+            }}
+        }},
+        {{
+            "id": "node-2", 
+            "type": "agent",
+            "x": 300,
+            "y": 100,
+            "config": {{
+                "role": "Papel do agente",
+                "goal": "Objetivo do agente",
+                "backstory": "História do agente"
+            }}
+        }}
+    ],
+    "connections": [
+        {{
+            "id": "conn-1",
+            "source": "node-1",
+            "target": "node-2"
+        }}
+    ]
+}}
+
+Regras importantes:
+1. Use tipos válidos: trigger, agent, task, guardrail, formatoSaida, template
+2. Posicione os nós de forma lógica (trigger -> agent -> task -> formatoSaida)
+3. Crie conexões entre os nós
+4. Inclua configurações apropriadas para cada tipo de nó
+5. Retorne apenas o JSON válido, sem explicações adicionais
+"""
+
+            print("Prompt da IA criado, chamando IaController.groq...")
+            
+            # Chamar a IA para gerar o layout
+            resposta_ia = IaController.groq(prompt_ia)
+            
+            print(f"Resposta da IA recebida: {resposta_ia}")
+            
+            if not resposta_ia:
+                print("Erro: resposta_ia é None")
+                return jsonify({'status': 'error', 'message': 'Erro ao gerar layout com IA - resposta vazia'}), 500
+                
+            if 'status' not in resposta_ia:
+                print(f"Erro: resposta_ia não contém 'status': {resposta_ia}")
+                return jsonify({'status': 'error', 'message': 'Erro ao gerar layout com IA - formato inválido'}), 500
+                
+            if resposta_ia['status'] != 'success':
+                print(f"Erro: status não é 'success': {resposta_ia['status']}")
+                return jsonify({'status': 'error', 'message': f'Erro ao gerar layout com IA: {resposta_ia.get("message", "Erro desconhecido")}'}), 500
+
+            # Tentar extrair JSON da resposta da IA
+            resposta_texto = resposta_ia.get('resposta', '')
+            print(f"Texto da resposta da IA: {resposta_texto}")
+            
+            # Procurar por JSON na resposta
+            import re
+            json_match = re.search(r'\{.*\}', resposta_texto, re.DOTALL)
+            
+            if json_match:
+                try:
+                    layout_json = json.loads(json_match.group())
+                    print(f"JSON extraído com sucesso: {layout_json}")
+                    
+                    # Validar estrutura do layout
+                    if 'layout' in layout_json:
+                        # Se o layout está aninhado, extrair
+                        layout_data = layout_json['layout']
+                        if 'nodes' not in layout_data or 'connections' not in layout_data:
+                            print("Erro: layout aninhado não contém 'nodes' ou 'connections'")
+                            return jsonify({'status': 'error', 'message': 'Layout gerado é inválido'}), 500
+                        # Retornar apenas o layout interno
+                        return jsonify({
+                            'status': 'success',
+                            'message': 'Fluxo criado com sucesso!',
+                            'layout': layout_data
+                        })
+                    elif 'nodes' not in layout_json or 'connections' not in layout_json:
+                        print("Erro: layout não contém 'nodes' ou 'connections'")
+                        return jsonify({'status': 'error', 'message': 'Layout gerado é inválido'}), 500
+                    else:
+                        # Layout já está no formato correto
+                        return jsonify({
+                            'status': 'success',
+                            'message': 'Fluxo criado com sucesso!',
+                            'layout': layout_json
+                        })
+                except json.JSONDecodeError as e:
+                    print(f"Erro ao fazer parse do JSON: {e}")
+                    return jsonify({'status': 'error', 'message': 'Erro ao processar resposta da IA'}), 500
+            else:
+                print("Erro: não foi possível encontrar JSON na resposta")
+                return jsonify({'status': 'error', 'message': 'Não foi possível extrair layout da resposta da IA'}), 500
+
+        except Exception as e:
+            print(f"Erro ao criar fluxo com IA: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({'status': 'error', 'message': f'Erro ao criar fluxo: {str(e)}'}), 500

@@ -1,0 +1,1 @@
+pyinstaller --onefile --noconsole --name AgenteVirtus --add-data "templates;templates" --add-data "static;static" --hidden-import waitress --hidden-import webview app.pyw

@@ -314,3 +314,37 @@ def criar_usuario_inicial():
     if not usuario:
         db.session.add(usuario)
         db.session.commit()
+
+
+# Modelo para configurações do sistema
+class SystemConfig(db.Model):
+    """Configurações do sistema armazenadas no banco de dados"""
+    id = db.Column(db.Integer, primary_key=True)
+    chave = db.Column(db.String(100), unique=True, nullable=False)
+    valor = db.Column(db.Text, nullable=True)
+    descricao = db.Column(db.String(255), nullable=True)
+    data_criacao = db.Column(db.DateTime, default=datetime.utcnow)
+    data_atualizacao = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<SystemConfig {self.chave}={self.valor}>'
+
+    @classmethod
+    def get_config(cls, chave, valor_padrao=None):
+        """Obtém uma configuração do sistema"""
+        config = cls.query.filter_by(chave=chave).first()
+        return config.valor if config else valor_padrao
+
+    @classmethod
+    def set_config(cls, chave, valor, descricao=None):
+        """Define uma configuração do sistema"""
+        config = cls.query.filter_by(chave=chave).first()
+        if config:
+            config.valor = valor
+            config.descricao = descricao
+            config.data_atualizacao = datetime.utcnow()
+        else:
+            config = cls(chave=chave, valor=valor, descricao=descricao)
+            db.session.add(config)
+        db.session.commit()
+        return config

@@ -1,7 +1,9 @@
-from flask import render_template, request, redirect, url_for, flash, jsonify
+from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
 from datetime import datetime
-from models.models import Usuario, ApiIa
-from config import db
+import os
+from models.models import Usuario, ApiIa, SystemConfig
+from config import db, configure_database_uri
+from utils.database_utils import DatabasePathManager
 
 class UsuarioController:
     @staticmethod
@@ -300,3 +302,98 @@ class UsuarioController:
             return redirect(url_for('minhaconta'))
         
         return redirect(url_for('minhaconta'))
+    
+    @staticmethod
+    def exportar_banco():
+        """
+        Exporta o banco de dados SQLite para download
+        """
+        try:
+            # Obter o caminho atual do banco de dados
+            db_path = DatabasePathManager.get_database_path()
+            
+            # Verificar se o arquivo existe
+            if not os.path.exists(db_path):
+                flash('Arquivo do banco de dados não encontrado!', 'error')
+                return redirect(url_for('minhaconta'))
+            
+            # Nome do arquivo para download
+            filename = f'agente_virtus_backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db'
+            
+            # Retornar o arquivo para download
+            return send_file(
+                db_path,
+                as_attachment=True,
+                download_name=filename,
+                mimetype='application/octet-stream'
+            )
+            
+        except Exception as e:
+            flash(f'Erro ao exportar banco de dados: {str(e)}', 'error')
+            return redirect(url_for('minhaconta'))
+    
+    @staticmethod
+    def configurar_banco():
+        """
+        Configura o caminho do banco de dados
+        """
+        if request.method == 'POST':
+            novo_caminho = request.form.get('database_path', '').strip()
+            
+            # Validar o caminho
+            is_valid, message = DatabasePathManager.validate_database_path(novo_caminho)
+            
+            if not is_valid:
+                flash(f'Caminho inválido: {message}', 'error')
+                return redirect(url_for('minhaconta'))
+            
+            try:
+                # Definir o novo caminho
+                DatabasePathManager.set_database_path(novo_caminho)
+                
+                # Aplicar a nova configuração do banco de dados
+                configure_database_uri()
+                
+                flash('Caminho do banco de dados atualizado com sucesso!', 'success')
+            except Exception as e:
+                flash(f'Erro ao atualizar caminho: {str(e)}', 'error')
+            
+            return redirect(url_for('minhaconta'))
+        
+        # GET: retorna informações do banco atual
+        db_info = DatabasePathManager.get_database_info()
+        return jsonify(db_info)
+    
+    @staticmethod
+    def info_sistema():
+        """
+        Retorna informações do sistema
+        """
+        try:
+            # Informações do banco de dados
+            db_info = DatabasePathManager.get_database_info()
+            
+            # Contadores de registros
+            from models.models import EquipeInteligente, ExecucaoEquipe, Nota, Conversa, ApiIa
+            
+            system_info = {
+                'database': db_info,
+                'statistics': {
+                    'usuarios': Usuario.query.count(),
+                    'apis_ia': ApiIa.query.count(),
+                    'equipes': EquipeInteligente.query.count(),
+                    'execucoes': ExecucaoEquipe.query.count(),
+                    'notas': Nota.query.count(),
+                    'conversas': Conversa.query.count(),
+                    'formularios': 0  # Será implementado quando necessário
+                },
+                'system': {
+                    'python_version': os.sys.version,
+                    'current_time': datetime.now().isoformat()
+                }
+            }
+            
+            return jsonify(system_info)
+            
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500

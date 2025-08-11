@@ -747,7 +747,7 @@ class PdfController:
                         'file': (file.filename, f, 'application/pdf')
                     }
                     payload = {
-                        'apikey': 'K87138378988957',
+                        'apikey': os.getenv('OCRSPACE_API_KEY'),
                         'language': 'por',
                         'isOverlayRequired': False,
                         'filetype': 'PDF',

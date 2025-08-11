@@ -85,7 +85,8 @@
                     <div class="chat-input-area">
                         <form id="chat-form" method="POST" action="{{ url_for('chatbot') }}">
                             <input type="hidden" id="ultima-pergunta" name="ultima_pergunta" value="">
-                            <input type="hidden" id="conversa_id" name="conversa_id" value="{% if conversa_id %}{{ conversa_id }}{% endif %}">
+                            <input type="hidden" id="conversa_id" name="conversa_id"
+                                value="{% if conversa_id %}{{ conversa_id }}{% endif %}">
                             <input type="hidden" id="hash_conversa" name="hash_conversa" value="">
                             <div class="chat-input-container">
                                 <textarea type="text" class="form-control" id="mensagem-input" name="mensagem"
@@ -181,152 +182,152 @@
 
         // Carregar conversas na barra lateral
         carregarConversasSidebar();
-        
+
         // Se há conversa_id na URL, carregar a conversa
         {% if conversa_id %}
         carregarConversa({{ conversa_id }});
-        {% endif %}
+    {% endif %}
 
-        // Configuração do toggle para exibir/ocultar detalhes
-        $('body').on('click', '.toggle-details', function () {
-            const detalhes = $('.detalhes-analise');
-            const icone = $(this).find('i');
-            const texto = $(this).find('span');
+    // Configuração do toggle para exibir/ocultar detalhes
+    $('body').on('click', '.toggle-details', function () {
+        const detalhes = $('.detalhes-analise');
+        const icone = $(this).find('i');
+        const texto = $(this).find('span');
 
-            if (detalhes.is(':visible')) {
-                // Ocultar detalhes
-                detalhes.slideUp(200);
-                icone.removeClass('fa-chevron-up').addClass('fa-chevron-down');
-                texto.text('Ver detalhes da análise');
-            } else {
-                // Mostrar detalhes
-                detalhes.slideDown(200);
-                icone.removeClass('fa-chevron-down').addClass('fa-chevron-up');
-                texto.text('Ocultar detalhes da análise');
-            }
-
-            // Rolar para o final após a animação
-            setTimeout(function () {
-                chatMessages.scrollTop(chatMessages[0].scrollHeight);
-            }, 250);
-        });
-
-        // Capturar e armazenar a pergunta do usuário quando o formulário for enviado
-        $('#chat-form').on('submit', function (e) {
-            e.preventDefault();
-
-            const pergunta = $('#mensagem-input').val();
-            if (!pergunta.trim()) return;
-
-            // Armazenar a pergunta no campo oculto
-            $('#ultima-pergunta').val(pergunta);
-
-            // Adicionar a mensagem do usuário ao chat
-            appendUserMessage(pergunta);
-
-            // Mostrar indicador de digitação
-            $('#typing-indicator').addClass('active');
-
-            // Limpar o campo de input
-            $('#mensagem-input').val('');
-
-            // Preparar dados para envio
-            const formData = new FormData();
-            formData.append('mensagem', pergunta);
-
-            // Adicionar informações da conversa se existirem
-            if (conversaAtual) {
-                formData.append('conversa_id', conversaAtual.id);
-                formData.append('hash_conversa', conversaAtual.hash_conversa);
-            }
-
-            // Enviar a requisição AJAX
-            $.ajax({
-                url: "{{ url_for('chatbot') }}",
-                type: "POST",
-                data: formData,
-                processData: false,
-                contentType: false,
-                success: function (response) {
-                    // Remover indicador de digitação
-                    $('#typing-indicator').removeClass('active');
-
-                    if (response.status === 'success') {
-                        // Atualizar informações da conversa se for a primeira mensagem
-                        if (!conversaAtual && response.conversa_id) {
-                            conversaAtual = {
-                                id: response.conversa_id,
-                                hash_conversa: response.hash_conversa,
-                                titulo: 'Nova conversa'
-                            };
-                            atualizarInfoConversa();
-                            // Recarregar conversas na sidebar
-                            carregarConversasSidebar();
-                        }
-
-                        // Adicionar a resposta do assistente
-                        appendAssistantMessage(response.resposta);
-                    } else {
-                        // Mostrar mensagem de erro
-                        appendAssistantMessage("Ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.");
-                    }
-
-                    // Rolar para o final
-                    const chatMessages = document.getElementById('chat-messages');
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
-                },
-                error: function (xhr, status, error) {
-                    // Remover indicador de digitação
-                    $('#typing-indicator').removeClass('active');
-
-                    // Mostrar mensagem de erro
-                    appendAssistantMessage("Ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.");
-                    console.error("Erro:", error);
-                }
-            });
-        });
-
-        // Função para carregar conversas na barra lateral
-        function carregarConversasSidebar() {
-            fetch('/api/conversas/sidebar')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        exibirConversasSidebar(data.conversas);
-                    } else {
-                        console.error('Erro ao carregar conversas:', data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro na requisição:', error);
-                });
+        if (detalhes.is(':visible')) {
+            // Ocultar detalhes
+            detalhes.slideUp(200);
+            icone.removeClass('fa-chevron-up').addClass('fa-chevron-down');
+            texto.text('Ver detalhes da análise');
+        } else {
+            // Mostrar detalhes
+            detalhes.slideDown(200);
+            icone.removeClass('fa-chevron-down').addClass('fa-chevron-up');
+            texto.text('Ocultar detalhes da análise');
         }
 
-        // Função para exibir conversas na barra lateral
-        function exibirConversasSidebar(conversas) {
-            const container = document.getElementById('lista-conversas-sidebar');
-            container.innerHTML = '';
+        // Rolar para o final após a animação
+        setTimeout(function () {
+            chatMessages.scrollTop(chatMessages[0].scrollHeight);
+        }, 250);
+    });
 
-            if (conversas.length === 0) {
-                container.innerHTML = '<div class="list-group-item text-muted text-center">Nenhuma conversa encontrada</div>';
-                return;
-            }
+    // Capturar e armazenar a pergunta do usuário quando o formulário for enviado
+    $('#chat-form').on('submit', function (e) {
+        e.preventDefault();
 
-            conversas.forEach(conversa => {
-                const item = document.createElement('div');
-                item.className = 'list-group-item list-group-item-action conversa-sidebar-item';
-                item.onclick = (e) => {
-                    // Evita abrir a conversa ao clicar na lixeira
-                    if (e.target.closest('.btn-delete-conversa')) return;
-                    carregarConversa(conversa.id);
-                };
+        const pergunta = $('#mensagem-input').val();
+        if (!pergunta.trim()) return;
 
-                // Destacar conversa ativa
-                if (conversaAtual && conversaAtual.id === conversa.id) {
-                    item.classList.add('active');
+        // Armazenar a pergunta no campo oculto
+        $('#ultima-pergunta').val(pergunta);
+
+        // Adicionar a mensagem do usuário ao chat
+        appendUserMessage(pergunta);
+
+        // Mostrar indicador de digitação
+        $('#typing-indicator').addClass('active');
+
+        // Limpar o campo de input
+        $('#mensagem-input').val('');
+
+        // Preparar dados para envio
+        const formData = new FormData();
+        formData.append('mensagem', pergunta);
+
+        // Adicionar informações da conversa se existirem
+        if (conversaAtual) {
+            formData.append('conversa_id', conversaAtual.id);
+            formData.append('hash_conversa', conversaAtual.hash_conversa);
+        }
+
+        // Enviar a requisição AJAX
+        $.ajax({
+            url: "{{ url_for('chatbot') }}",
+            type: "POST",
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function (response) {
+                // Remover indicador de digitação
+                $('#typing-indicator').removeClass('active');
+
+                if (response.status === 'success') {
+                    // Atualizar informações da conversa se for a primeira mensagem
+                    if (!conversaAtual && response.conversa_id) {
+                        conversaAtual = {
+                            id: response.conversa_id,
+                            hash_conversa: response.hash_conversa,
+                            titulo: 'Nova conversa'
+                        };
+                        atualizarInfoConversa();
+                        // Recarregar conversas na sidebar
+                        carregarConversasSidebar();
+                    }
+
+                    // Adicionar a resposta do assistente
+                    appendAssistantMessage(response.resposta);
+                } else {
+                    // Mostrar mensagem de erro
+                    appendAssistantMessage("Ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.");
                 }
 
-                item.innerHTML = `
+                // Rolar para o final
+                const chatMessages = document.getElementById('chat-messages');
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            },
+            error: function (xhr, status, error) {
+                // Remover indicador de digitação
+                $('#typing-indicator').removeClass('active');
+
+                // Mostrar mensagem de erro
+                appendAssistantMessage("Ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.");
+                console.error("Erro:", error);
+            }
+        });
+    });
+
+    // Função para carregar conversas na barra lateral
+    function carregarConversasSidebar() {
+        fetch('/api/conversas/sidebar')
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    exibirConversasSidebar(data.conversas);
+                } else {
+                    console.error('Erro ao carregar conversas:', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Erro na requisição:', error);
+            });
+    }
+
+    // Função para exibir conversas na barra lateral
+    function exibirConversasSidebar(conversas) {
+        const container = document.getElementById('lista-conversas-sidebar');
+        container.innerHTML = '';
+
+        if (conversas.length === 0) {
+            container.innerHTML = '<div class="list-group-item text-muted text-center">Nenhuma conversa encontrada</div>';
+            return;
+        }
+
+        conversas.forEach(conversa => {
+            const item = document.createElement('div');
+            item.className = 'list-group-item list-group-item-action conversa-sidebar-item';
+            item.onclick = (e) => {
+                // Evita abrir a conversa ao clicar na lixeira
+                if (e.target.closest('.btn-delete-conversa')) return;
+                carregarConversa(conversa.id);
+            };
+
+            // Destacar conversa ativa
+            if (conversaAtual && conversaAtual.id === conversa.id) {
+                item.classList.add('active');
+            }
+
+            item.innerHTML = `
                 <div class="d-flex w-100 justify-content-between align-items-center">
                     <h6 class="mb-1 text-truncate" style="max-width: 150px;">${conversa.titulo}</h6>
                     <div class="d-flex align-items-center">
@@ -340,39 +341,39 @@
                 <small class="text-muted">${conversa.atualizada_em}</small>
             `;
 
-                // Evento para deletar conversa
-                item.querySelector('.btn-delete-conversa').onclick = function(ev) {
-                    ev.stopPropagation();
-                    if (confirm('Tem certeza que deseja excluir esta conversa?')) {
-                        deletarConversa(conversa.id);
-                    }
-                };
+            // Evento para deletar conversa
+            item.querySelector('.btn-delete-conversa').onclick = function (ev) {
+                ev.stopPropagation();
+                if (confirm('Tem certeza que deseja excluir esta conversa?')) {
+                    deletarConversa(conversa.id);
+                }
+            };
 
-                // Mostrar botão de deletar ao passar mouse
-                item.onmouseenter = function() {
-                    const btn = item.querySelector('.btn-delete-conversa');
-                    if (btn) btn.style.display = 'inline-block';
-                };
-                item.onmouseleave = function() {
-                    const btn = item.querySelector('.btn-delete-conversa');
-                    if (btn) btn.style.display = 'none';
-                };
+            // Mostrar botão de deletar ao passar mouse
+            item.onmouseenter = function () {
+                const btn = item.querySelector('.btn-delete-conversa');
+                if (btn) btn.style.display = 'inline-block';
+            };
+            item.onmouseleave = function () {
+                const btn = item.querySelector('.btn-delete-conversa');
+                if (btn) btn.style.display = 'none';
+            };
 
-                container.appendChild(item);
-            });
-        }
+            container.appendChild(item);
+        });
+    }
 
-        // Função para carregar uma conversa específica
-        function carregarConversa(conversaId) {
-            fetch(`/api/conversa?conversa_id=${conversaId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        conversaAtual = data.conversa;
-                        atualizarInfoConversa();
+    // Função para carregar uma conversa específica
+    function carregarConversa(conversaId) {
+        fetch(`/api/conversa?conversa_id=${conversaId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    conversaAtual = data.conversa;
+                    atualizarInfoConversa();
 
-                        // Limpar chat atual
-                        $('#chat-messages').html(`
+                    // Limpar chat atual
+                    $('#chat-messages').html(`
                         <!-- Mensagem de boas-vindas do assistente -->
                         <div class="message message-assistant">
                             <i class="icon fas fa-robot"></i>
@@ -394,113 +395,76 @@
                         </div>
                     `);
 
-                        // Carregar mensagens da conversa
-                        data.mensagens.forEach(msg => {
-                            if (msg.role === 'user') {
-                                appendUserMessage(msg.conteudo);
-                            } else if (msg.role === 'assistant') {
-                                appendAssistantMessage(msg.conteudo);
-                            }
-                        });
+                    // Carregar mensagens da conversa
+                    data.mensagens.forEach(msg => {
+                        if (msg.role === 'user') {
+                            appendUserMessage(msg.conteudo);
+                        } else if (msg.role === 'assistant') {
+                            appendAssistantMessage(msg.conteudo);
+                        }
+                    });
 
-                        // Atualizar sidebar
-                        carregarConversasSidebar();
+                    // Atualizar sidebar
+                    carregarConversasSidebar();
 
-                        // Rolar para o final
-                        const chatMessages = document.getElementById('chat-messages');
-                        chatMessages.scrollTop = chatMessages.scrollHeight;
-                    } else {
-                        console.error('Erro ao carregar conversa:', data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro na requisição:', error);
-                });
-        }
-
-        // Função para atualizar informações da conversa na interface
-        function atualizarInfoConversa() {
-            if (conversaAtual) {
-                document.getElementById('conversa-titulo').textContent = conversaAtual.titulo;
-                document.getElementById('conversa-info').style.display = 'block';
-            }
-        }
-
-        // Função para criar nova conversa
-        function criarNovaConversa() {
-            document.getElementById('formNovaConversa').reset();
-            $('#modalNovaConversa').modal('show');
-        }
-
-        // Função para salvar nova conversa
-        function salvarNovaConversa() {
-            const formData = new FormData(document.getElementById('formNovaConversa'));
-
-            fetch('/api/conversa/criar', {
-                method: 'POST',
-                body: formData
+                    // Rolar para o final
+                    const chatMessages = document.getElementById('chat-messages');
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                } else {
+                    console.error('Erro ao carregar conversa:', data.message);
+                }
             })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        $('#modalNovaConversa').modal('hide');
-                        // Carregar a nova conversa
-                        carregarConversa(data.conversa.id);
-                    } else {
-                        alert('Erro ao criar conversa: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro na requisição:', error);
-                    alert('Erro ao criar conversa');
-                });
+            .catch(error => {
+                console.error('Erro na requisição:', error);
+            });
+    }
+
+    // Função para atualizar informações da conversa na interface
+    function atualizarInfoConversa() {
+        if (conversaAtual) {
+            document.getElementById('conversa-titulo').textContent = conversaAtual.titulo;
+            document.getElementById('conversa-info').style.display = 'block';
         }
+    }
 
-        // Função para editar título da conversa
-        function editarTituloConversa() {
-            if (!conversaAtual) return;
+    // Função para criar nova conversa
+    function criarNovaConversa() {
+        document.getElementById('formNovaConversa').reset();
+        $('#modalNovaConversa').modal('show');
+    }
 
-            document.getElementById('novo_titulo').value = conversaAtual.titulo;
-            $('#modalEditarTitulo').modal('show');
-        }
+    // Função para salvar nova conversa
+    function salvarNovaConversa() {
+        const formData = new FormData(document.getElementById('formNovaConversa'));
 
-        // Função para salvar novo título
-        function salvarNovoTitulo() {
-            if (!conversaAtual) return;
-
-            const novoTitulo = document.getElementById('novo_titulo').value.trim();
-            if (!novoTitulo) return;
-
-            const formData = new FormData();
-            formData.append('conversa_id', conversaAtual.id);
-            formData.append('titulo', novoTitulo);
-
-            fetch('/api/conversa/atualizar-titulo', {
-                method: 'POST',
-                body: formData
+        fetch('/api/conversa/criar', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    $('#modalNovaConversa').modal('hide');
+                    // Carregar a nova conversa
+                    carregarConversa(data.conversa.id);
+                } else {
+                    alert('Erro ao criar conversa: ' + data.message);
+                }
             })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        conversaAtual.titulo = novoTitulo;
-                        atualizarInfoConversa();
-                        $('#modalEditarTitulo').modal('hide');
-                        // Recarregar sidebar
-                        carregarConversasSidebar();
-                    } else {
-                        alert('Erro ao atualizar título: ' + data.message);
-                    }
-                })
-                .catch(error => {
-                    console.error('Erro na requisição:', error);
-                    alert('Erro ao atualizar título');
-                });
-        }
+            .catch(error => {
+                console.error('Erro na requisição:', error);
+                alert('Erro ao criar conversa');
+            });
+    }
 
-        // Função para adicionar mensagem do usuário
-        function appendUserMessage(message) {
-            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const html = `
+
+
+
+
+    // Função para adicionar mensagem do usuário
+    function appendUserMessage(message) {
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const html = `
                 <div class="message message-user">
                     <div class="message-content">
                         <div class="message-text"><i class="icon fas fa-user"></i> ${message}</div>
@@ -508,48 +472,48 @@
                     <span class="message-time text-black">${time}</span>
                 </div>
             `;
-            $('#chat-messages').append(html);
+        $('#chat-messages').append(html);
 
-            // Rolar para o final
-            const chatMessages = document.getElementById('chat-messages');
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+        // Rolar para o final
+        const chatMessages = document.getElementById('chat-messages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Função para adicionar mensagem do assistente
+    function appendAssistantMessage(message) {
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        let respostaDireta = message;
+        let detalhesResposta = null;
+
+        // Se vier objeto (resposta estruturada)
+        if (typeof message === 'object' && message !== null) {
+            if (message.resposta_direta && message.detalhes && message.detalhes.trim() !== "") {
+                respostaDireta = message.resposta_direta;
+                detalhesResposta = message.detalhes;
+            } else if (message.resposta_direta) {
+                respostaDireta = message.resposta_direta;
+            }
         }
 
-        // Função para adicionar mensagem do assistente
-        function appendAssistantMessage(message) {
-            const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            let respostaDireta = message;
-            let detalhesResposta = null;
-
-            // Se vier objeto (resposta estruturada)
-            if (typeof message === 'object' && message !== null) {
-                if (message.resposta_direta && message.detalhes && message.detalhes.trim() !== "") {
-                    respostaDireta = message.resposta_direta;
-                    detalhesResposta = message.detalhes;
-                } else if (message.resposta_direta) {
-                    respostaDireta = message.resposta_direta;
+        // Se vier string JSON (fallback antigo)
+        if (typeof message === 'string') {
+            try {
+                const parsedMessage = JSON.parse(message);
+                if (parsedMessage.resposta_direta && parsedMessage.detalhes && parsedMessage.detalhes.trim() !== "") {
+                    respostaDireta = parsedMessage.resposta_direta;
+                    detalhesResposta = parsedMessage.detalhes;
+                } else if (parsedMessage.resposta_direta) {
+                    respostaDireta = parsedMessage.resposta_direta;
                 }
+            } catch (e) {
+                respostaDireta = message;
             }
+        }
 
-            // Se vier string JSON (fallback antigo)
-            if (typeof message === 'string') {
-                try {
-                    const parsedMessage = JSON.parse(message);
-                    if (parsedMessage.resposta_direta && parsedMessage.detalhes && parsedMessage.detalhes.trim() !== "") {
-                        respostaDireta = parsedMessage.resposta_direta;
-                        detalhesResposta = parsedMessage.detalhes;
-                    } else if (parsedMessage.resposta_direta) {
-                        respostaDireta = parsedMessage.resposta_direta;
-                    }
-                } catch (e) {
-                    respostaDireta = message;
-                }
-            }
+        // Ajusta a quebra de linha
+        respostaDireta = respostaDireta.replace('\n', '<br>');
 
-            // Ajusta a quebra de linha
-            respostaDireta = respostaDireta.replace('\n', '<br>');
-
-            const html = `
+        const html = `
                 <div class="message message-assistant">
                     <i class="icon fas fa-robot"></i>
                     <div class="message-content">
@@ -563,19 +527,19 @@
                     </div>
                 </div>
             `;
-            $('#chat-messages').append(html);
-            const chatMessages = document.getElementById('chat-messages');
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-        }
+        $('#chat-messages').append(html);
+        const chatMessages = document.getElementById('chat-messages');
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 
-        // Função para deletar conversa
-        function deletarConversa(conversaId) {
-            const formData = new FormData();
-            formData.append('conversa_id', conversaId);
-            fetch('/api/conversa/deletar', {
-                method: 'POST',
-                body: formData
-            })
+    // Função para deletar conversa
+    function deletarConversa(conversaId) {
+        const formData = new FormData();
+        formData.append('conversa_id', conversaId);
+        fetch('/api/conversa/deletar', {
+            method: 'POST',
+            body: formData
+        })
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
@@ -611,8 +575,56 @@
                 alert('Erro ao deletar conversa');
                 console.error('Erro na requisição:', error);
             });
+    }
+         });
+
+    // Função para editar título da conversa (escopo global)
+    function editarTituloConversa() {
+        try {
+            if (!conversaAtual) {
+                console.log('Nenhuma conversa selecionada');
+                return;
+            }
+
+            const novo_titulo = document.getElementById('novo_titulo');
+            if (novo_titulo) {
+                novo_titulo.value = conversaAtual.titulo || '';
+                $('#modalEditarTitulo').modal('show');
+            } else {
+                console.error('Elemento novo_titulo não encontrado');
+            }
+        } catch (error) {
+            console.error('Erro ao editar título:', error);
         }
-    });
+    }
+
+    // Função para salvar novo título (escopo global)
+    function salvarNovoTitulo() {
+        if (!conversaAtual) return;
+
+        const novoTitulo = document.getElementById('novo_titulo').value.trim();
+        if (!novoTitulo) return;
+
+        const formData = new FormData();
+        formData.append('conversa_id', conversaAtual.id);
+        formData.append('titulo', novoTitulo);
+
+        fetch('/api/conversa/atualizar-titulo', {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                conversaAtual.titulo = novoTitulo;
+                atualizarInfoConversa();
+                $('#modalEditarTitulo').modal('hide');
+                carregarConversasSidebar();
+            })
+            .catch(error => {
+                console.error('Erro na requisição:', error);
+                alert('Erro ao atualizar título');
+            });
+    }
 
     // Função para copiar texto (mantida do código original)
     function copyToClipboard(element) {

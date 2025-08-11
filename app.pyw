@@ -3,6 +3,11 @@ from routes import init_routes
 from filters import register_filters
 from models.models import criar_usuario_inicial, EquipeInteligente, Formulario
 from migrations import migrate  # Importando o Flask-Migrate
+from flask_cors import CORS
+from flaskwebgui import FlaskUI 
+
+# Configuração do CORS
+CORS(app)
 
 # Registrar filtros customizados
 register_filters(app)
@@ -46,4 +51,7 @@ if __name__ == '__main__':
         db.create_all()
         criar_usuario_inicial()
         
-    app.run(debug=True) 
+    FlaskUI(app=app,
+                fullscreen=True,
+                server="flask",
+                port=8088).run()

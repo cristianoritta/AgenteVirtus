@@ -64,9 +64,9 @@
             <div class="timeline">
                 {% for exec in execucoes_sprint %}
                 <div class="timeline-item mb-4 {% if exec.id == execucao.id %}bg-light{% endif %} p-3 rounded">
-                    <div class="d-flex justify-content-between mb-2">
+                    <div class="d-flex justify-content-between mb-2 border-bottom">
                         <h6 class="font-weight-bold">
-                            Execução #{{ exec.id }}
+                            Execução #{{ exec.id }} 
                             {% if exec.id == execucao.id %}
                             <span class="badge badge-primary">Atual</span>
                             {% endif %}
@@ -83,7 +83,7 @@
                     
                     <div>
                         <strong class="text-success">Resposta:</strong>
-                        <pre class="mt-2" style="white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 0.85em;">{{ exec.resposta }}</pre>
+                        <pre class="mt-2 resposta-markdown" style="white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 0.85em;">{{ exec.resposta }}</pre>
                     </div>
                 </div>
                 {% endfor %}
@@ -93,3 +93,17 @@
 
 </div>
 {% endblock %} 
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/showdown/2.1.0/showdown.min.js"></script>
+<script>
+
+    // Seleciona todos os elementos com a classe 'resposta-markdown'
+    const respostaMarkdown = document.querySelectorAll('.resposta-markdown');
+    respostaMarkdown.forEach(resposta => {
+        const converter = new showdown.Converter();
+        const markdown = converter.makeHtml(resposta.innerHTML);
+        resposta.innerHTML = markdown;
+    });
+</script>
+{% endblock %}

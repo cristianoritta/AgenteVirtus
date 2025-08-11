@@ -54,6 +54,18 @@ def init_routes(app):
     def apiia_desativar(id):
         return UsuarioController.apiia_desativar(id)
     
+    @app.route('/minhaconta/exportar-banco')
+    def exportar_banco():
+        return UsuarioController.exportar_banco()
+    
+    @app.route('/minhaconta/configurar-banco', methods=['GET', 'POST'])
+    def configurar_banco():
+        return UsuarioController.configurar_banco()
+    
+    @app.route('/minhaconta/info-sistema')
+    def info_sistema():
+        return UsuarioController.info_sistema()
+    
     ##########################################################################################################
     # Rotas de agentes inteligentes
     ##########################################################################################################
@@ -97,6 +109,10 @@ def init_routes(app):
     @app.route('/agentesinteligentes/importar_equipe', methods=['POST'])
     def importar_equipe():
         return AgentesController.importar_equipe()
+    
+    @app.route('/agentesinteligentes/criar_fluxo_com_ia', methods=['POST'])
+    def criar_fluxo_com_ia():
+        return AgentesController.criar_fluxo_com_ia()
     
     @app.route('/agentesinteligentes/download_arquivo/<int:equipe_id>/<node_id>/<formato>')
     def download_arquivo_formato(equipe_id, node_id, formato):
