@@ -1,11 +1,12 @@
 import os
+import shutil
 import json
 import requests
 from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from models.models import Usuario, ApiIa, SystemConfig
-from utils.database_utils import get_database_info
+from utils.database_utils import get_database_info, get_database_path
 
 class UsuarioController:
     @staticmethod
@@ -47,7 +48,10 @@ class UsuarioController:
             'senha': SystemConfig.get_config('proxy_senha', '')
         }
         
-        return render_template('admin/minhaconta.html', usuario=usuario, apis_ia=apis_ia, proxy_config=proxy_config)
+        return render_template('admin/minhaconta.html', usuario=usuario, apis_ia=apis_ia, proxy_config=proxy_config, 
+                                    database_path=get_database_path().replace('utils\..\\', ''),
+                                    database_info=get_database_info()
+                                )
     
     @staticmethod
     def alterar_senha():
@@ -215,7 +219,7 @@ class UsuarioController:
         """
         try:
             # Caminho fixo do banco de dados
-            db_path = 'instance/agente_virtus.db'
+            db_path = get_database_path()
             
             # Verificar se o arquivo existe
             if not os.path.exists(db_path):
@@ -278,22 +282,24 @@ class UsuarioController:
                 return redirect(url_for('minhaconta'))
             
             # Caminho do banco de dados atual
-            db_path = 'instance/agente_virtus.db'
+            db_path = get_database_path()
             
-            # Garantir que o diretório instance existe
-            os.makedirs('instance', exist_ok=True)
+            print(f"Banco de dados importado para: {db_path}")
             
             # Criar backup do banco atual antes de substituir
             if os.path.exists(db_path):
-                backup_path = f'instance/agente_virtus_backup_antes_importacao_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db'
-                import shutil
+                backup_path = os.path.join(
+                    os.path.dirname(db_path),
+                    f'agente_virtus_backup_antes_importacao_{datetime.now().strftime("%Y%m%d_%H%M%S")}.db'
+                )
+                    
                 shutil.copy2(db_path, backup_path)
                 print(f"✅ Backup criado: {backup_path}")
             
             # Salvar o novo arquivo
             arquivo.save(db_path)
             
-            flash(f'Banco de dados importado com sucesso! Arquivo "{arquivo.filename}" foi salvo como agente_virtus.db. Recomenda-se reiniciar a aplicação para garantir que todas as mudanças sejam aplicadas corretamente.', 'success')
+            flash(f'Banco de dados importado com sucesso! Arquivo "{arquivo.filename}" foi salvo como {db_path}. Recomenda-se reiniciar a aplicação para garantir que todas as mudanças sejam aplicadas corretamente.', 'success')
             
             # Redirecionar para a página inicial
             return redirect(url_for('minhaconta'))

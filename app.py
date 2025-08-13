@@ -8,6 +8,8 @@ from migrations import migrate  # Importando o Flask-Migrate
 register_filters(app)
 
 # Contexto global para carregar menus dinâmicos
+
+
 @app.before_request
 def carregar_menus_dinamicos():
     """Carrega os menus dinâmicos da tabela EquipeInteligente e Formulario"""
@@ -16,13 +18,13 @@ def carregar_menus_dinamicos():
         menus_dinamicos = EquipeInteligente.query.filter(
             EquipeInteligente.menu_ordem > 0
         ).order_by(EquipeInteligente.menu_ordem).all()
-        
+
         # Busca todos os formulários ativos com menu_ordem > 0, ordenados por menu_ordem
         formularios_dinamicos = Formulario.query.filter(
             Formulario.ativo == True,
             Formulario.menu_ordem > 0
         ).order_by(Formulario.menu_ordem).all()
-        
+
         # Adiciona os menus à sessão para uso nos templates
         app.jinja_env.globals['menus'] = menus_dinamicos
         app.jinja_env.globals['formularios'] = formularios_dinamicos
@@ -32,17 +34,14 @@ def carregar_menus_dinamicos():
         app.jinja_env.globals['formularios'] = []
         print(f"Erro ao carregar menus dinâmicos: {e}")
 
+
 init_routes(app)
 
 
-
 if __name__ == '__main__':
-    # E chame isso dentro de um contexto de aplicação:
     with app.app_context():
-        
 
-        
         db.create_all()
         criar_usuario_inicial()
-        
-    app.run(debug=True) 
+
+    app.run(debug=True)
