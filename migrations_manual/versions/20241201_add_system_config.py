@@ -28,13 +28,6 @@ def upgrade():
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('chave')
     )
-    
-    # Inserir configuração padrão do banco de dados
-    op.execute("""
-        INSERT INTO system_config (chave, valor, descricao, data_criacao, data_atualizacao)
-        VALUES ('database_path', 'instance/agente_virtus.db', 'Caminho do arquivo do banco de dados', 
-                datetime('now'), datetime('now'))
-    """)
 
 
 def downgrade():

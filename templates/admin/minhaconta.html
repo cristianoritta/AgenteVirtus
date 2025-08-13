@@ -29,17 +29,17 @@
                             <div class="form-group col-lg-4">
                                 <label for="nome">Nome</label>
                                 <input type="text" class="form-control" id="nome" name="nome"
-                                    value="{{ usuario.nome }}">
+                                    value="{{ usuario.nome if usuario else '' }}">
                             </div>
                             <div class="form-group col-lg-4">
                                 <label for="email">Email</label>
                                 <input type="email" class="form-control" id="email" name="email"
-                                    value="{{ usuario.email }}">
+                                    value="{{ usuario.email if usuario else '' }}">
                             </div>
                             <div class="form-group col-lg-4">
                                 <label for="telefone">Telefone</label>
                                 <input type="text" class="form-control" id="telefone" name="telefone"
-                                    value="{{ usuario.telefone }}">
+                                    value="{{ usuario.telefone if usuario else '' }}">
                             </div>
                         </div>
                     </form>
@@ -103,7 +103,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for api in apis_ia %}
+                            {% for api in apis_ia or [] %}
                             <tr>
                                 <td>{{ api.nome }}</td>
                                 <td>
@@ -177,23 +177,25 @@
                             <div class="card">
                                 <div class="card-header">
                                     <h6 class="mb-0">
-                                        <i class="fas fa-cog me-2"></i>
-                                        Configurar Banco de Dados
+                                        <i class="fas fa-upload me-2"></i>
+                                        Restaurar Banco de Dados
                                     </h6>
                                 </div>
                                 <div class="card-body">
-                                    <form action="/minhaconta/configurar-banco" method="post" id="form-config-banco">
+                                    <p class="text-muted">
+                                        Faça upload de um arquivo .db para restaurar o banco de dados.
+                                    </p>
+                                    <form action="/minhaconta/importar-banco" method="post" enctype="multipart/form-data" id="form-importar-banco">
                                         <div class="form-group">
-                                            <label for="database_path">Caminho do Banco de Dados</label>
-                                            <input type="text" class="form-control" id="database_path" name="database_path" 
-                                                   placeholder="Ex: instance/agente_virtus.db" required>
+                                            <input type="file" class="form-control" id="arquivo_banco" name="arquivo_banco" 
+                                                   accept=".db" required>
                                             <small class="form-text text-muted">
-                                                Caminho completo para o arquivo do banco de dados (.db)
+                                                Selecione um arquivo .db para importar
                                             </small>
                                         </div>
-                                        <button type="submit" class="btn btn-warning mt-2">
-                                            <i class="fas fa-save me-2"></i>
-                                            Salvar Configuração
+                                        <button type="submit" class="btn btn-warning mt-2" id="btn-importar-banco">
+                                            <i class="fas fa-upload me-2"></i>
+                                            Importar Banco de Dados
                                         </button>
                                     </form>
                                 </div>
@@ -462,20 +464,6 @@
             });
     }
 
-    // Função para carregar configuração atual do banco
-    function carregarConfigBanco() {
-        fetch('/minhaconta/configurar-banco')
-            .then(response => response.json())
-            .then(data => {
-                if (data.path) {
-                    document.getElementById('database_path').value = data.path;
-                }
-            })
-            .catch(error => {
-                console.error('Erro ao carregar configuração do banco:', error);
-            });
-    }
-
     // Carregar informações quando a aba Sistema for ativada
     document.addEventListener('DOMContentLoaded', function() {
         const sistemaTab = document.getElementById('sistema-tab');
@@ -483,8 +471,57 @@
         
         sistemaTab.addEventListener('shown.bs.tab', function() {
             carregarInfoSistema();
-            carregarConfigBanco();
         });
+        
+        // Confirmação antes de importar banco de dados
+        const formImportarBanco = document.getElementById('form-importar-banco');
+        if (formImportarBanco) {
+            formImportarBanco.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const arquivo = document.getElementById('arquivo_banco').files[0];
+                if (!arquivo) {
+                    Swal.fire({
+                        title: 'Erro',
+                        text: 'Por favor, selecione um arquivo .db',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                    return;
+                }
+                
+                if (!arquivo.name.endsWith('.db')) {
+                    Swal.fire({
+                        title: 'Erro',
+                        text: 'Por favor, selecione apenas arquivos .db',
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                    return;
+                }
+                
+                Swal.fire({
+                    title: 'Confirmar Importação',
+                    text: `Tem certeza que deseja importar o arquivo "${arquivo.name}"? Esta ação irá substituir o banco de dados atual.`,
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Sim, importar!',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // Mostrar loading
+                        const btn = document.getElementById('btn-importar-banco');
+                        btn.disabled = true;
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Importando...';
+                        
+                        // Enviar formulário
+                        formImportarBanco.submit();
+                    }
+                });
+            });
+        }
     });
 </script>
 {% endblock %}

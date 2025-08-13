@@ -1,4 +1,4 @@
-from config import app, db, configure_database_uri
+from config import app, db
 from routes import init_routes
 from filters import register_filters
 from models.models import criar_usuario_inicial, EquipeInteligente, Formulario
@@ -40,8 +40,7 @@ if __name__ == '__main__':
     # E chame isso dentro de um contexto de aplicação:
     with app.app_context():
         
-        # Configurar banco de dados dinamicamente
-        configure_database_uri()
+
         
         db.create_all()
         criar_usuario_inicial()

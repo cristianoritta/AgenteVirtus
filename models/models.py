@@ -310,10 +310,16 @@ class RegistroFormulario(db.Model):
 ###########################################################################################
 
 def criar_usuario_inicial():
-    usuario = Usuario(nome='Administrador', email='admin@admin.com', telefone='1234567890')
-    if not usuario:
+    """Cria o usuário administrador inicial se não existir"""
+    # Verificar se já existe um usuário
+    usuario_existente = Usuario.query.first()
+    if not usuario_existente:
+        usuario = Usuario(nome='Administrador', email='admin@admin.com', telefone='1234567890')
         db.session.add(usuario)
         db.session.commit()
+        print("✅ Usuário administrador criado com sucesso!")
+    else:
+        print("✅ Usuário administrador já existe!")
 
 
 # Modelo para configurações do sistema

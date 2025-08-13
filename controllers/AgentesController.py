@@ -935,12 +935,14 @@ resultado = executar_codigo('''{texto_entrada}''')
         
         for i, equipe in enumerate(equipes):
             layout = json.loads(equipe.layout) if isinstance(equipe.layout, str) else equipe.layout
-            if layout['nodes'][-1]['type'] == 'formatoSaida':
-                equipes[i].formato_saida = layout['nodes'][-1]['config']['type']
-            elif layout['nodes'][-1]['type'] == 'template':
-                equipes[i].formato_saida = 'Template do Word'
-            else:
-                equipes[i].formato_saida = 'Não definido'
+            
+            if len(layout['nodes']) > 0:
+                if layout['nodes'][-1]['type'] == 'formatoSaida':
+                    equipes[i].formato_saida = layout['nodes'][-1]['config']['type']
+                elif layout['nodes'][-1]['type'] == 'template':
+                    equipes[i].formato_saida = 'Template do Word'
+                else:
+                    equipes[i].formato_saida = 'Não definido'
         
         return render_template('agentes/equipes.html', equipes=equipes)
 

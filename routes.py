@@ -58,9 +58,9 @@ def init_routes(app):
     def exportar_banco():
         return UsuarioController.exportar_banco()
     
-    @app.route('/minhaconta/configurar-banco', methods=['GET', 'POST'])
-    def configurar_banco():
-        return UsuarioController.configurar_banco()
+    @app.route('/minhaconta/importar-banco', methods=['POST'])
+    def importar_banco():
+        return UsuarioController.importar_banco()
     
     @app.route('/minhaconta/info-sistema')
     def info_sistema():
