@@ -34,3 +34,35 @@ def format_file_size(size_bytes):
         i += 1
     
     return f"{size_bytes:.1f} {size_names[i]}"
+
+def get_proxy_config():
+    """Obtém as configurações de proxy do sistema"""
+    try:
+        from models.models import SystemConfig
+        
+        config = {
+            'endereco': SystemConfig.get_config('proxy_endereco', ''),
+            'login': SystemConfig.get_config('proxy_login', ''),
+            'senha': SystemConfig.get_config('proxy_senha', '')
+        }
+        
+        return config
+    except Exception as e:
+        print(f"Erro ao obter configurações de proxy: {e}")
+        return {'endereco': '', 'login': '', 'senha': ''}
+
+def get_proxy_dict():
+    """Retorna um dicionário de proxies para uso com requests"""
+    config = get_proxy_config()
+    
+    if not config['endereco']:
+        return {}
+    
+    proxy_url = f"http://{config['endereco']}"
+    if config['login'] and config['senha']:
+        proxy_url = f"http://{config['login']}:{config['senha']}@{config['endereco']}"
+    
+    return {
+        'http': proxy_url,
+        'https': proxy_url
+    }

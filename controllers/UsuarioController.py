@@ -1,9 +1,10 @@
 import os
 import json
+import requests
 from datetime import datetime
 from flask import render_template, request, redirect, url_for, flash, jsonify, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
-from models.models import Usuario, ApiIa
+from models.models import Usuario, ApiIa, SystemConfig
 from utils.database_utils import get_database_info
 
 class UsuarioController:
@@ -39,7 +40,14 @@ class UsuarioController:
             if not usuario:
                 usuario = Usuario(nome='', email='', telefone='')
             
-        return render_template('admin/minhaconta.html', usuario=usuario, apis_ia=apis_ia)
+        # Carregar configurações de proxy
+        proxy_config = {
+            'endereco': SystemConfig.get_config('proxy_endereco', ''),
+            'login': SystemConfig.get_config('proxy_login', ''),
+            'senha': SystemConfig.get_config('proxy_senha', '')
+        }
+        
+        return render_template('admin/minhaconta.html', usuario=usuario, apis_ia=apis_ia, proxy_config=proxy_config)
     
     @staticmethod
     def alterar_senha():
@@ -327,3 +335,145 @@ class UsuarioController:
             
         except Exception as e:
             return jsonify({'error': str(e)}), 500
+
+    @staticmethod
+    def salvar_proxy():
+        """Salvar configurações de proxy"""
+        try:
+            endereco = request.form.get('proxy_endereco', '').strip()
+            login = request.form.get('proxy_login', '').strip()
+            senha = request.form.get('proxy_senha', '').strip()
+            
+            # Salvar configurações no SystemConfig
+            SystemConfig.set_config('proxy_endereco', endereco, 'Endereço do servidor proxy')
+            SystemConfig.set_config('proxy_login', login, 'Login para autenticação no proxy')
+            SystemConfig.set_config('proxy_senha', senha, 'Senha para autenticação no proxy')
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Configurações de proxy salvas com sucesso!'
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Erro ao salvar configurações de proxy: {str(e)}'
+            }), 500
+
+    @staticmethod
+    def carregar_proxy():
+        """Carregar configurações de proxy"""
+        try:
+            config = {
+                'endereco': SystemConfig.get_config('proxy_endereco', ''),
+                'login': SystemConfig.get_config('proxy_login', ''),
+                'senha': SystemConfig.get_config('proxy_senha', '')
+            }
+            
+            return jsonify({
+                'status': 'success',
+                'config': config
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Erro ao carregar configurações de proxy: {str(e)}'
+            }), 500
+
+    @staticmethod
+    def testar_proxy():
+        """Testar conexão com proxy"""
+        try:
+            data = request.get_json()
+            endereco = data.get('endereco', '').strip()
+            login = data.get('login', '').strip()
+            senha = data.get('senha', '').strip()
+            
+            if not endereco:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Endereço do proxy é obrigatório'
+                }), 400
+            
+            # Configurar proxy para teste
+            proxies = {}
+            if endereco:
+                proxy_url = f"http://{endereco}"
+                if login and senha:
+                    # Proxy com autenticação
+                    proxy_url = f"http://{login}:{senha}@{endereco}"
+                proxies = {
+                    'http': proxy_url,
+                    'https': proxy_url
+                }
+            
+            # Testar conexão fazendo uma requisição simples
+            try:
+                response = requests.get(
+                    'http://httpbin.org/ip',
+                    proxies=proxies,
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    return jsonify({
+                        'status': 'success',
+                        'message': 'Conexão com proxy estabelecida com sucesso!',
+                        'ip_info': response.json()
+                    })
+                else:
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'Erro na conexão: Status {response.status_code}'
+                    }), 400
+                    
+            except requests.exceptions.ProxyError:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Erro de conexão com o proxy. Verifique o endereço e credenciais.'
+                }), 400
+            except requests.exceptions.Timeout:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Timeout na conexão com o proxy. Verifique se o servidor está acessível.'
+                }), 400
+            except requests.exceptions.RequestException as e:
+                return jsonify({
+                    'status': 'error',
+                    'message': f'Erro na requisição: {str(e)}'
+                }), 400
+                
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Erro ao testar proxy: {str(e)}'
+            }), 500
+
+    @staticmethod
+    def limpar_proxy():
+        """Limpar configurações de proxy"""
+        try:
+            # Remover configurações do SystemConfig
+            from config import db
+            
+            # Buscar e remover configurações existentes
+            configs = SystemConfig.query.filter(
+                SystemConfig.chave.in_(['proxy_endereco', 'proxy_login', 'proxy_senha'])
+            ).all()
+            
+            for config in configs:
+                db.session.delete(config)
+            
+            db.session.commit()
+            
+            return jsonify({
+                'status': 'success',
+                'message': 'Configurações de proxy removidas com sucesso!'
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Erro ao limpar configurações de proxy: {str(e)}'
+            }), 500

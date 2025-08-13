@@ -18,6 +18,10 @@
                 <button class="nav-link" id="sistema-tab" data-bs-toggle="tab" data-bs-target="#sistema" type="button"
                     role="tab">Sistema</button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="proxy-tab" data-bs-toggle="tab" data-bs-target="#proxy" type="button"
+                    role="tab">Proxy</button>
+            </li>
         </ul>
     </div>
     <div class="card-body">
@@ -223,6 +227,65 @@
                                         Atualizar Informações
                                     </button>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="proxy" role="tabpanel">
+                <div class="card-body">
+                    <h5>Configurações de Proxy</h5>
+                    <p class="text-muted mb-4">
+                        Configure as configurações de proxy para conexões externas da aplicação.
+                    </p>
+                    
+                    <form action="/minhaconta/proxy/salvar" method="post" id="form-proxy">
+                        <div class="row">
+                            <div class="form-group col-lg-6">
+                                <label for="proxy_endereco">Endereço do Proxy</label>
+                                <input type="text" class="form-control" id="proxy_endereco" name="proxy_endereco" 
+                                       placeholder="Ex: proxy.exemplo.com:8080" value="{{ proxy_config.endereco if proxy_config else '' }}">
+                                <small class="form-text text-muted">Endereço e porta do servidor proxy (ex: proxy.exemplo.com:8080)</small>
+                            </div>
+                            <div class="form-group col-lg-3">
+                                <label for="proxy_login">Login</label>
+                                <input type="text" class="form-control" id="proxy_login" name="proxy_login" 
+                                       placeholder="Usuário do proxy" value="{{ proxy_config.login if proxy_config else '' }}">
+                                <small class="form-text text-muted">Nome de usuário para autenticação no proxy</small>
+                            </div>
+                            <div class="form-group col-lg-3">
+                                <label for="proxy_senha">Senha</label>
+                                <input type="password" class="form-control" id="proxy_senha" name="proxy_senha" 
+                                       placeholder="Senha do proxy" value="{{ proxy_config.senha if proxy_config else '' }}">
+                                <small class="form-text text-muted">Senha para autenticação no proxy</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-success" id="btn-salvar-proxy">
+                                    <i class="fas fa-save me-2"></i>Salvar Configurações de Proxy
+                                </button>
+                                <button type="button" class="btn btn-info ms-2" id="btn-testar-proxy">
+                                    <i class="fas fa-network-wired me-2"></i>Testar Conexão
+                                </button>
+                                <button type="button" class="btn btn-warning ms-2" id="btn-limpar-proxy">
+                                    <i class="fas fa-trash me-2"></i>Limpar Configurações
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle me-2"></i>Informações sobre Proxy</h6>
+                                <ul class="mb-0">
+                                    <li>As configurações de proxy são usadas para conexões HTTP/HTTPS externas</li>
+                                    <li>Deixe os campos em branco para não usar proxy</li>
+                                    <li>Formato do endereço: <code>host:porta</code> ou <code>host</code> (porta padrão 80)</li>
+                                    <li>As configurações são salvas de forma segura no banco de dados</li>
+                                </ul>
                             </div>
                         </div>
                     </div>
@@ -464,14 +527,20 @@
             });
     }
 
-    // Carregar informações quando a aba Sistema for ativada
-    document.addEventListener('DOMContentLoaded', function() {
-        const sistemaTab = document.getElementById('sistema-tab');
-        const sistemaPane = document.getElementById('sistema');
-        
-        sistemaTab.addEventListener('shown.bs.tab', function() {
-            carregarInfoSistema();
-        });
+            // Carregar informações quando a aba Sistema for ativada
+        document.addEventListener('DOMContentLoaded', function() {
+            const sistemaTab = document.getElementById('sistema-tab');
+            const sistemaPane = document.getElementById('sistema');
+            
+            sistemaTab.addEventListener('shown.bs.tab', function() {
+                carregarInfoSistema();
+            });
+            
+            // Carregar configurações de proxy quando a aba Proxy for ativada
+            const proxyTab = document.getElementById('proxy-tab');
+            proxyTab.addEventListener('shown.bs.tab', function() {
+                carregarConfigProxy();
+            });
         
         // Confirmação antes de importar banco de dados
         const formImportarBanco = document.getElementById('form-importar-banco');
@@ -518,6 +587,194 @@
                         
                         // Enviar formulário
                         formImportarBanco.submit();
+                    }
+                });
+            });
+        }
+        
+        // Função para carregar configurações de proxy
+        function carregarConfigProxy() {
+            fetch('/minhaconta/proxy/carregar')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        document.getElementById('proxy_endereco').value = data.config.endereco || '';
+                        document.getElementById('proxy_login').value = data.config.login || '';
+                        document.getElementById('proxy_senha').value = data.config.senha || '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro ao carregar configurações de proxy:', error);
+                });
+        }
+        
+        // Gerenciar formulário de proxy
+        const formProxy = document.getElementById('form-proxy');
+        if (formProxy) {
+            formProxy.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this);
+                const btnSalvar = document.getElementById('btn-salvar-proxy');
+                
+                // Mostrar loading
+                btnSalvar.disabled = true;
+                btnSalvar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Salvando...';
+                
+                fetch('/minhaconta/proxy/salvar', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Swal.fire({
+                            title: '✅ Configurações Salvas!',
+                            text: 'As configurações de proxy foram salvas com sucesso.',
+                            icon: 'success',
+                            confirmButtonText: 'OK'
+                        });
+                    } else {
+                        Swal.fire({
+                            title: '❌ Erro',
+                            text: data.message || 'Erro ao salvar configurações de proxy',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                })
+                .catch(error => {
+                    Swal.fire({
+                        title: '❌ Erro',
+                        text: 'Erro ao salvar configurações de proxy: ' + error.message,
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                })
+                .finally(() => {
+                    // Restaurar botão
+                    btnSalvar.disabled = false;
+                    btnSalvar.innerHTML = '<i class="fas fa-save me-2"></i>Salvar Configurações de Proxy';
+                });
+            });
+        }
+        
+        // Botão testar proxy
+        const btnTestarProxy = document.getElementById('btn-testar-proxy');
+        if (btnTestarProxy) {
+            btnTestarProxy.addEventListener('click', function() {
+                const endereco = document.getElementById('proxy_endereco').value;
+                const login = document.getElementById('proxy_login').value;
+                const senha = document.getElementById('proxy_senha').value;
+                
+                if (!endereco) {
+                    Swal.fire({
+                        title: 'Aviso',
+                        text: 'Por favor, configure o endereço do proxy antes de testar.',
+                        icon: 'warning',
+                        confirmButtonText: 'OK'
+                    });
+                    return;
+                }
+                
+                // Mostrar loading
+                btnTestarProxy.disabled = true;
+                btnTestarProxy.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Testando...';
+                
+                fetch('/minhaconta/proxy/testar', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        endereco: endereco,
+                        login: login,
+                        senha: senha
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        Swal.fire({
+                            title: '✅ Conexão Testada!',
+                            text: 'A conexão com o proxy foi estabelecida com sucesso.',
+                            icon: 'success',
+                            confirmButtonText: 'OK'
+                        });
+                    } else {
+                        Swal.fire({
+                            title: '❌ Erro na Conexão',
+                            text: data.message || 'Erro ao testar conexão com o proxy',
+                            icon: 'error',
+                            confirmButtonText: 'OK'
+                        });
+                    }
+                })
+                .catch(error => {
+                    Swal.fire({
+                        title: '❌ Erro',
+                        text: 'Erro ao testar conexão: ' + error.message,
+                        icon: 'error',
+                        confirmButtonText: 'OK'
+                    });
+                })
+                .finally(() => {
+                    // Restaurar botão
+                    btnTestarProxy.disabled = false;
+                    btnTestarProxy.innerHTML = '<i class="fas fa-network-wired me-2"></i>Testar Conexão';
+                });
+            });
+        }
+        
+        // Botão limpar proxy
+        const btnLimparProxy = document.getElementById('btn-limpar-proxy');
+        if (btnLimparProxy) {
+            btnLimparProxy.addEventListener('click', function() {
+                Swal.fire({
+                    title: 'Confirmar Limpeza',
+                    text: 'Tem certeza que deseja limpar as configurações de proxy?',
+                    icon: 'warning',
+                    showCancelButton: true,
+                    confirmButtonColor: '#d33',
+                    cancelButtonColor: '#3085d6',
+                    confirmButtonText: 'Sim, limpar!',
+                    cancelButtonText: 'Cancelar'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        fetch('/minhaconta/proxy/limpar', {
+                            method: 'POST'
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                // Limpar campos
+                                document.getElementById('proxy_endereco').value = '';
+                                document.getElementById('proxy_login').value = '';
+                                document.getElementById('proxy_senha').value = '';
+                                
+                                Swal.fire({
+                                    title: '✅ Configurações Limpas!',
+                                    text: 'As configurações de proxy foram removidas.',
+                                    icon: 'success',
+                                    confirmButtonText: 'OK'
+                                });
+                            } else {
+                                Swal.fire({
+                                    title: '❌ Erro',
+                                    text: data.message || 'Erro ao limpar configurações',
+                                    icon: 'error',
+                                    confirmButtonText: 'OK'
+                                });
+                            }
+                        })
+                        .catch(error => {
+                            Swal.fire({
+                                title: '❌ Erro',
+                                text: 'Erro ao limpar configurações: ' + error.message,
+                                icon: 'error',
+                                confirmButtonText: 'OK'
+                            });
+                        });
                     }
                 });
             });

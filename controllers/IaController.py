@@ -64,12 +64,6 @@ def configurar_openai_client(api):
         else:
             raise e
 
-    # Logs úteis (remova se não precisar)
-    print("-" * 100)
-    print("Endpoint configurado:", base_url)
-    print("Cliente:", client)
-    print("-" * 100)
-
     return client
 
 

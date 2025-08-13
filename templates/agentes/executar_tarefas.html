@@ -19,14 +19,22 @@
                         
                         {% if node.config.type == 'pdf' or node.config.type == 'audio' or node.config.type == 'planilha' %}
                         <div class="mb-3">
-                            <label for="arquivo" class="form-label">Selecione o arquivo.</label>
+                            <label for="arquivos" class="form-label">
+                                <i class="fas fa-file-upload me-2"></i>
+                                Selecione um ou mais arquivos
+                                <small class="text-muted">(Ctrl+Click para selecionar múltiplos)</small>
+                            </label>
                             {% if node.config.type == 'pdf' %}
-                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".pdf" required>
+                            <input type="file" class="form-control" id="arquivos" name="arquivos" accept=".pdf" multiple required>
                             {% elif node.config.type == 'audio' %}
-                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".wav,.mp3,.m4a" required>
+                            <input type="file" class="form-control" id="arquivos" name="arquivos" accept=".wav,.mp3,.m4a" multiple required>
                             {% elif node.config.type == 'planilha' %}
-                            <input type="file" class="form-control" id="arquivo" name="arquivo" accept=".xlsx,.xls,.csv" required>
+                            <input type="file" class="form-control" id="arquivos" name="arquivos" accept=".xlsx,.xls,.csv" multiple required>
                             {% endif %}
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Você pode selecionar múltiplos arquivos. Todos serão processados e os resultados combinados antes da execução.
+                            </div>
                         </div>
                         {% elif node.config.type == 'text' %}
                         <div class="mb-3">
@@ -41,6 +49,18 @@
                         <button type="submit" id="executarBtn" class="btn btn-primary">
                             <i class="fas fa-play"></i> Executar Tarefas
                         </button>
+                        
+                        <div id="progressContainer" class="mt-3" style="display: none;">
+                            <div class="progress">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                     role="progressbar" style="width: 0%" id="progressBar">
+                                    Processando arquivos...
+                                </div>
+                            </div>
+                            <small class="text-muted" id="progressText">
+                                Preparando para processar múltiplos arquivos...
+                            </small>
+                        </div>
                     </form>
                     {% endif %}
                 </div>
@@ -82,4 +102,69 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('arquivos');
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            const files = this.files;
+            const fileCount = files.length;
+            
+            // Criar ou atualizar o elemento de preview
+            let preview = document.getElementById('file-preview');
+            if (!preview) {
+                preview = document.createElement('div');
+                preview.id = 'file-preview';
+                preview.className = 'mt-2';
+                this.parentNode.appendChild(preview);
+            }
+            
+            if (fileCount > 0) {
+                let previewHTML = '<div class="alert alert-info"><h6><i class="fas fa-files-o me-2"></i>Arquivos Selecionados:</h6><ul class="mb-0">';
+                
+                for (let i = 0; i < fileCount; i++) {
+                    const file = files[i];
+                    const size = (file.size / 1024).toFixed(1); // KB
+                    previewHTML += `<li><strong>${file.name}</strong> (${size} KB)</li>`;
+                }
+                
+                previewHTML += '</ul></div>';
+                preview.innerHTML = previewHTML;
+            } else {
+                preview.innerHTML = '';
+            }
+        });
+    }
+    
+    // Adicionar validação ao formulário
+    const form = document.getElementById('executarForm');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const fileInput = document.getElementById('arquivos');
+            if (fileInput && fileInput.files.length === 0) {
+                e.preventDefault();
+                alert('Por favor, selecione pelo menos um arquivo.');
+                return false;
+            }
+            
+            // Mostrar progresso para múltiplos arquivos
+            if (fileInput && fileInput.files.length > 1) {
+                const progressContainer = document.getElementById('progressContainer');
+                const progressBar = document.getElementById('progressBar');
+                const progressText = document.getElementById('progressText');
+                const executarBtn = document.getElementById('executarBtn');
+                
+                progressContainer.style.display = 'block';
+                executarBtn.disabled = true;
+                executarBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+                
+                progressText.textContent = `Processando ${fileInput.files.length} arquivo(s)...`;
+                progressBar.style.width = '100%';
+                progressBar.textContent = 'Processando arquivos...';
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

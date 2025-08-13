@@ -152,55 +152,100 @@ class AgentesController:
 
             else:
                 """
-                Nós que contém arquivos
+                Nós que contém arquivos - Processamento de múltiplos arquivos
                 """
-                arquivo = request.files['arquivo']
-
-                if tipo_equipe == 'pdf':
-                    # Ler o conteúdo do arquivo diretamente do objeto FileStorage
-                    pdf_reader = PdfReader(arquivo)
-
-                    for page in pdf_reader.pages:
-                        texto += page.extract_text()
-                elif tipo_equipe == 'audio':
-                    # Salvar o arquivo de áudio temporariamente no disco
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
-                        # Ler o conteúdo do arquivo e escrever no arquivo temporário
-                        audio_content = arquivo.read()
-                        temp_file.write(audio_content)
-                        temp_audio_path = temp_file.name  # Caminho do arquivo temporário
-
-                    with open(temp_audio_path, "rb") as file:
-                        transcricao = IaController.groq_transcrever(file)
-                        texto = transcricao['transcricao']
+                arquivos = request.files.getlist('arquivos')
+                
+                if not arquivos or all(arquivo.filename == '' for arquivo in arquivos):
+                    return jsonify({'error': 'Nenhum arquivo foi enviado'}), 400
+                
+                print(f"*** Processando {len(arquivos)} arquivo(s) do tipo {tipo_equipe} ***")
+                
+                # Atualizar o status da execução
+                execucao.resposta = f"Processando {len(arquivos)} arquivo(s) do tipo {tipo_equipe}..."
+                db.session.commit()
+                
+                # Processar cada arquivo individualmente
+                resultados_arquivos = []
+                
+                for i, arquivo in enumerate(arquivos):
+                    if arquivo.filename == '':
+                        continue
+                        
+                    print(f"Processando arquivo {i+1}/{len(arquivos)}: {arquivo.filename}")
+                    resultado_arquivo = f"\n\n### ARQUIVO {i+1}: {arquivo.filename} ###\n"
                     
-                    # Limpar arquivo temporário
-                    try:
-                        os.unlink(temp_audio_path)
-                    except:
-                        pass
-                elif tipo_equipe == 'planilha':
-                    # Processar planilha com pandas
-                    try:
-                        # Obter a extensão do arquivo
-                        filename = arquivo.filename.lower()
-                        print(filename)
+                    if tipo_equipe == 'pdf':
+                        # Ler o conteúdo do arquivo PDF
+                        pdf_reader = PdfReader(arquivo)
+                        texto_pdf = ""
+                        for page in pdf_reader.pages:
+                            texto_pdf += page.extract_text()
                         
-                        if filename.endswith('.csv'):
-                            # Ler arquivo CSV
-                            df = pd.read_csv(arquivo)
-                        elif filename.endswith(('.xlsx', '.xls')):
-                            # Ler arquivo Excel
-                            df = pd.read_excel(arquivo)
-                        else:
-                            print("Formato de arquivo não suportado")
-                            raise ValueError("Formato de arquivo não suportado")
+                        resultado_arquivo += f"""
+<informacoes_pdf>
+Nome do arquivo: {arquivo.filename}
+Número de páginas: {len(pdf_reader.pages)}
+</informacoes_pdf>
+
+<conteudo_pdf>
+{texto_pdf}
+</conteudo_pdf>
+"""
+                        resultados_arquivos.append(resultado_arquivo)
                         
-                        print(df)
-                        
-                        # Converter DataFrame para texto estruturado
-                        texto += f"""
-### DADOS DA PLANILHA ###
+                    elif tipo_equipe == 'audio':
+                        # Salvar o arquivo de áudio temporariamente no disco
+                        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as temp_file:
+                            # Ler o conteúdo do arquivo e escrever no arquivo temporário
+                            audio_content = arquivo.read()
+                            temp_file.write(audio_content)
+                            temp_audio_path = temp_file.name  # Caminho do arquivo temporário
+
+                        try:
+                            with open(temp_audio_path, "rb") as file:
+                                transcricao = IaController.groq_transcrever(file)
+                                texto_transcricao = transcricao['transcricao']
+                            
+                            resultado_arquivo += f"""
+<informacoes_audio>
+Nome do arquivo: {arquivo.filename}
+</informacoes_audio>
+
+<transcricao_audio>
+{texto_transcricao}
+</transcricao_audio>
+"""
+                            resultados_arquivos.append(resultado_arquivo)
+                            
+                        finally:
+                            # Limpar arquivo temporário
+                            try:
+                                os.unlink(temp_audio_path)
+                            except:
+                                pass
+                                
+                    elif tipo_equipe == 'planilha':
+                        # Processar planilha com pandas
+                        try:
+                            # Obter a extensão do arquivo
+                            filename = arquivo.filename.lower()
+                            print(f"Processando planilha: {filename}")
+                            
+                            if filename.endswith('.csv'):
+                                # Ler arquivo CSV
+                                df = pd.read_csv(arquivo)
+                            elif filename.endswith(('.xlsx', '.xls')):
+                                # Ler arquivo Excel
+                                df = pd.read_excel(arquivo)
+                            else:
+                                print("Formato de arquivo não suportado")
+                                raise ValueError("Formato de arquivo não suportado")
+                            
+                            print(f"Planilha carregada: {df.shape}")
+                            
+                            # Converter DataFrame para texto estruturado
+                            resultado_arquivo += f"""
 <informacoes_planilha>
 Nome do arquivo: {arquivo.filename}
 Dimensões: {df.shape[0]} linhas x {df.shape[1]} colunas
@@ -215,53 +260,73 @@ Colunas: {', '.join(df.columns.tolist())}
 {df.describe().to_string()}
 </resumo_estatistico>
 """
-                        
-                    except Exception as e:
-                        print(f"Erro ao processar planilha: {str(e)}")
-                        texto = ""
-                        
-                        if filename.endswith('.csv'):
-                            print("Tentando ler CSV linha a linha...")
-                            try:
-                                # Primeiro, vamos tentar ler usando csv.reader
-                                arquivo.stream.seek(0)  # Garantir que estamos no início do arquivo
-                                arquivo_content = arquivo.stream.read().decode('utf-8-sig')  # utf-8-sig para lidar com BOM
-                                import csv
-                                from io import StringIO
+                            resultados_arquivos.append(resultado_arquivo)
+                            
+                        except Exception as e:
+                            print(f"Erro ao processar planilha {arquivo.filename}: {str(e)}")
+                            resultado_arquivo += f"\nErro ao processar planilha: {str(e)}\n"
+                            
+                            if filename.endswith('.csv'):
+                                print("Tentando ler CSV linha a linha...")
+                                try:
+                                    # Primeiro, vamos tentar ler usando csv.reader
+                                    arquivo.stream.seek(0)  # Garantir que estamos no início do arquivo
+                                    arquivo_content = arquivo.stream.read().decode('utf-8-sig')  # utf-8-sig para lidar com BOM
+                                    import csv
+                                    from io import StringIO
 
-                                # Criar um buffer de texto
-                                csvfile = StringIO(arquivo_content)
-                                
-                                # Usar o csv.reader para lidar corretamente com as células
-                                reader = csv.reader(csvfile)
-                                
-                                # Ler o cabeçalho
-                                headers = next(reader)
-                                print(f"Cabeçalho encontrado: {headers}")
-                                
-                                texto += "### DADOS DA PLANILHA ###\n"
-                                texto += f"Colunas encontradas: {', '.join(headers)}\n\n"
-                                texto += "### CONTEÚDO ###\n"
-                                
-                                # Ler as linhas de dados
-                                for row in reader:
-                                    # Limpar células vazias e espaços
-                                    row = [cell.strip() for cell in row if cell.strip()]
-                                    if row:  # Se a linha não estiver vazia
-                                        print(f"Linha lida: {row}")
-                                        texto += " | ".join(row) + "\n"
-                                
-                                arquivo.stream.seek(0)  # Resetar o ponteiro do arquivo
-                                
-                            except Exception as csv_error:
-                                print(f"Erro ao ler CSV linha a linha: {str(csv_error)}")
-                                texto += f"\nErro ao processar CSV: {str(csv_error)}\n"
-                        
-                        else:
-                            texto += f"\nErro ao processar planilha: {str(e)}\n"
+                                    # Criar um buffer de texto
+                                    csvfile = StringIO(arquivo_content)
+                                    
+                                    # Usar o csv.reader para lidar corretamente com as células
+                                    reader = csv.reader(csvfile)
+                                    
+                                    # Ler o cabeçalho
+                                    headers = next(reader)
+                                    print(f"Cabeçalho encontrado: {headers}")
+                                    
+                                    resultado_arquivo += "### DADOS DA PLANILHA ###\n"
+                                    resultado_arquivo += f"Colunas encontradas: {', '.join(headers)}\n\n"
+                                    resultado_arquivo += "### CONTEÚDO ###\n"
+                                    
+                                    # Ler as linhas de dados
+                                    for row in reader:
+                                        # Limpar células vazias e espaços
+                                        row = [cell.strip() for cell in row if cell.strip()]
+                                        if row:  # Se a linha não estiver vazia
+                                            print(f"Linha lida: {row}")
+                                            resultado_arquivo += " | ".join(row) + "\n"
+                                    
+                                    arquivo.stream.seek(0)  # Resetar o ponteiro do arquivo
+                                    resultados_arquivos.append(resultado_arquivo)
+                                    
+                                except Exception as csv_error:
+                                    print(f"Erro ao ler CSV linha a linha: {str(csv_error)}")
+                                    resultado_arquivo += f"\nErro ao processar CSV: {str(csv_error)}\n"
+                                    resultados_arquivos.append(resultado_arquivo)
+                            else:
+                                resultados_arquivos.append(resultado_arquivo)
+                
+                # Combinar todos os resultados dos arquivos
+                if resultados_arquivos:
+                    texto += f"\n\n### RESUMO DOS ARQUIVOS PROCESSADOS ###\n"
+                    texto += f"Total de arquivos processados: {len(resultados_arquivos)}\n"
+                    texto += f"Tipos de arquivo: {tipo_equipe.upper()}\n\n"
                     
+                    for resultado in resultados_arquivos:
+                        texto += resultado
                     
-                    print(texto)
+                    print(f"*** Processamento concluído. {len(resultados_arquivos)} arquivo(s) processado(s) ***")
+                    
+                    # Atualizar o status da execução
+                    execucao.resposta = f"Processamento concluído. {len(resultados_arquivos)} arquivo(s) processado(s) com sucesso."
+                    db.session.commit()
+                else:
+                    texto += "\n\n### ERRO ###\nNenhum arquivo foi processado com sucesso.\n"
+                    
+                    # Atualizar o status da execução
+                    execucao.resposta = "Erro: Nenhum arquivo foi processado com sucesso."
+                    db.session.commit()
 
             ########################################################################################
             # PROCESSA TODA A TAREFA, EM SEQUENCIA BASEADA NAS CONEXÕES

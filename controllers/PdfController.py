@@ -721,6 +721,125 @@ class PdfController:
             }), 500 
 
     @staticmethod
+    def extrair_paginas():
+        """Extrair páginas específicas de um PDF"""
+        if request.method == 'GET':
+            return render_template('pdf/extrair_paginas.html')
+        
+        try:
+            file = request.files['pdf']
+            paginas_str = request.form.get('paginas', '').strip()
+
+            if not file or file.filename == '':
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Nenhum arquivo PDF foi enviado'
+                }), 400
+
+            if not paginas_str:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Nenhuma página foi especificada'
+                }), 400
+
+            # Ler o PDF
+            pdf_reader = PdfReader(file)
+            total_pages = len(pdf_reader.pages)
+
+            # Processar a string de páginas
+            # Substituir ; por ,
+            paginas_str = paginas_str.replace(';', ',')
+            
+            # Fazer split em , e processar cada bloco
+            blocos = [bloco.strip() for bloco in paginas_str.split(',') if bloco.strip()]
+            
+            # Conjunto para armazenar páginas únicas (evitar duplicatas)
+            paginas_para_extrair = set()
+            
+            for bloco in blocos:
+                if '-' in bloco:
+                    # Se tem - entre os números, extrair desde a primeira até a segunda
+                    try:
+                        inicio, fim = map(int, bloco.split('-'))
+                        # Validar se as páginas estão dentro do range
+                        if inicio < 1 or fim > total_pages:
+                            return jsonify({
+                                'status': 'error',
+                                'message': f'Páginas {inicio}-{fim} estão fora do range válido (1-{total_pages})'
+                            }), 400
+                        if inicio > fim:
+                            return jsonify({
+                                'status': 'error',
+                                'message': f'Página inicial ({inicio}) não pode ser maior que a final ({fim})'
+                            }), 400
+                        
+                        # Adicionar todas as páginas do intervalo (convertendo para índice baseado em 0)
+                        for pagina in range(inicio, fim + 1):
+                            paginas_para_extrair.add(pagina - 1)
+                    except ValueError:
+                        return jsonify({
+                            'status': 'error',
+                            'message': f'Formato inválido no intervalo: {bloco}'
+                        }), 400
+                else:
+                    # Se for um número, extrair aquela página
+                    try:
+                        pagina = int(bloco)
+                        if pagina < 1 or pagina > total_pages:
+                            return jsonify({
+                                'status': 'error',
+                                'message': f'Página {pagina} está fora do range válido (1-{total_pages})'
+                            }), 400
+                        paginas_para_extrair.add(pagina - 1)  # Converter para índice baseado em 0
+                    except ValueError:
+                        return jsonify({
+                            'status': 'error',
+                            'message': f'Página inválida: {bloco}'
+                        }), 400
+
+            if not paginas_para_extrair:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Nenhuma página válida foi especificada'
+                }), 400
+
+            # Criar um buffer para o ZIP
+            zip_buffer = io.BytesIO()
+            
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                # Ordenar as páginas para manter a ordem
+                paginas_ordenadas = sorted(paginas_para_extrair)
+                
+                for i, pagina_idx in enumerate(paginas_ordenadas):
+                    # Criar um PDF com apenas esta página
+                    pdf_writer = PdfWriter()
+                    pdf_writer.add_page(pdf_reader.pages[pagina_idx])
+                    
+                    # Criar PDF em memória
+                    pdf_buffer = io.BytesIO()
+                    pdf_writer.write(pdf_buffer)
+                    pdf_buffer.seek(0)
+                    
+                    # Adicionar ao ZIP com nome descritivo
+                    nome_arquivo = f'pagina_{pagina_idx + 1}.pdf'
+                    zip_file.writestr(nome_arquivo, pdf_buffer.getvalue())
+
+            # Retornar o ZIP
+            zip_buffer.seek(0)
+            return send_file(
+                zip_buffer,
+                as_attachment=True,
+                download_name=f'paginas_extraidas_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip',
+                mimetype='application/zip'
+            )
+
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Erro ao extrair páginas: {str(e)}'
+            }), 500
+
+    @staticmethod
     def ocr_pdf():
         """Fazer OCR em PDF usando OCR.Space API"""
         if request.method == 'GET':

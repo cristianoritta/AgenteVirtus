@@ -62,6 +62,22 @@ def init_routes(app):
     def importar_banco():
         return UsuarioController.importar_banco()
     
+    @app.route('/minhaconta/proxy/salvar', methods=['POST'])
+    def salvar_proxy():
+        return UsuarioController.salvar_proxy()
+    
+    @app.route('/minhaconta/proxy/carregar')
+    def carregar_proxy():
+        return UsuarioController.carregar_proxy()
+    
+    @app.route('/minhaconta/proxy/testar', methods=['POST'])
+    def testar_proxy():
+        return UsuarioController.testar_proxy()
+    
+    @app.route('/minhaconta/proxy/limpar', methods=['POST'])
+    def limpar_proxy():
+        return UsuarioController.limpar_proxy()
+    
     @app.route('/minhaconta/info-sistema')
     def info_sistema():
         return UsuarioController.info_sistema()
@@ -232,6 +248,10 @@ def init_routes(app):
     @app.route('/pdf/extrair-texto', methods=['GET', 'POST'])
     def pdf_extrair_texto():
         return PdfController.extrair_texto()
+    
+    @app.route('/pdf/extrair-paginas', methods=['GET', 'POST'])
+    def pdf_extrair_paginas():
+        return PdfController.extrair_paginas()
     
     @app.route('/pdf/resumir', methods=['GET', 'POST'])
     def pdf_resumir():
