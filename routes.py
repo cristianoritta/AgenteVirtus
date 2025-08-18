@@ -88,7 +88,7 @@ def init_routes(app):
     # Rotas de agentes inteligentes
     @app.route('/agentesinteligentes/equipes')
     def listar_equipes_inteligentes():
-        return AgentesController.listar_equipes_inteligentes()
+        return AgentesController.equipes()
     
     @app.route('/agentesinteligentes/canva', defaults={'equipe_id': None})
     @app.route('/agentesinteligentes/canva/<int:equipe_id>')

@@ -101,6 +101,20 @@ class AgentesController:
         return jsonify({'status': 'success', 'message': 'Equipe salva no menu com sucesso!'})
 
     @staticmethod
+    def deletar_equipe(id):
+        """Deleta uma equipe inteligente"""
+        try:
+            equipe = EquipeInteligente.query.get_or_404(id)
+            db.session.delete(equipe)
+            db.session.commit()
+            flash('Equipe deletada com sucesso!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erro ao deletar equipe: {str(e)}', 'error')
+        
+        return redirect(url_for('listar_equipes_inteligentes'))
+
+    @staticmethod
     def executar_tarefas(equipe_id, trigger=True):
         equipe = EquipeInteligente.query.get_or_404(equipe_id)
         layout = json.loads(equipe.layout) if isinstance(equipe.layout, str) else equipe.layout
@@ -952,12 +966,21 @@ resultado = executar_codigo('''{texto_entrada}''')
             execucao.resposta = resumo_final
             db.session.commit()
 
-            return jsonify({
-                'success': True,
-                'message': 'Equipe executada com sucesso',
-                'execucao_id': execucao.id,
-                'resposta': respostas[-1]['resposta'] if respostas else 'Execução concluída'
-            })
+            # Verificar se há um arquivo para download
+            arquivo_download = AgentesController._verificar_arquivo_download(respostas)
+            if arquivo_download:
+                # Se há um arquivo para download, retornar o arquivo diretamente
+                return arquivo_download
+            else:
+                # Se não há arquivo, redirecionar para a página de detalhes da execução
+                return redirect(url_for('detalhes_execucao', execucao_id=execucao.id))
+
+    @staticmethod
+    def _verificar_arquivo_download(respostas):
+        """Verifica se há um arquivo para download na lista de respostas"""
+        if respostas and 'arquivo_download' in respostas[-1]:
+            return respostas[-1]['arquivo_download']
+        return None
 
     @staticmethod
     def gerar_arquivo_saida(conteudo, formato, nome_arquivo="resultado", equipe_id=None):
@@ -1223,6 +1246,79 @@ resultado = executar_codigo('''{texto_entrada}''')
         except Exception as e:
             print(f'[UPLOAD TEMPLATE] Erro ao salvar template: {e}')
             return jsonify({'status': 'error', 'message': str(e)})
+
+    @staticmethod
+    def download_equipe(id):
+        """Download de uma equipe em formato JSON"""
+        try:
+            equipe = EquipeInteligente.query.get_or_404(id)
+            
+            # Preparar dados da equipe para exportação
+            equipe_data = {
+                'id': equipe.id,
+                'nome': equipe.nome,
+                'descricao': equipe.descricao,
+                'processo': equipe.processo,
+                'layout': equipe.layout,
+                'menu_ordem': equipe.menu_ordem,
+                'criado_em': equipe.criado_em.isoformat() if equipe.criado_em else None,
+                'atualizado_em': equipe.atualizado_em.isoformat() if equipe.atualizado_em else None
+            }
+            
+            # Criar resposta JSON
+            response = make_response(json.dumps(equipe_data, indent=2, ensure_ascii=False))
+            response.headers['Content-Disposition'] = f'attachment; filename=equipe_{equipe.nome}_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+            response.headers['Content-Type'] = 'application/json'
+            
+            return response
+            
+        except Exception as e:
+            flash(f'Erro ao fazer download da equipe: {str(e)}', 'error')
+            return redirect(url_for('listar_equipes_inteligentes'))
+
+    @staticmethod
+    def importar_equipe():
+        """Importa uma equipe a partir de um arquivo JSON"""
+        try:
+            if 'arquivo_equipe' not in request.files:
+                flash('Nenhum arquivo foi enviado!', 'error')
+                return redirect(url_for('listar_equipes_inteligentes'))
+            
+            arquivo = request.files['arquivo_equipe']
+            
+            if arquivo.filename == '':
+                flash('Nenhum arquivo foi selecionado!', 'error')
+                return redirect(url_for('listar_equipes_inteligentes'))
+            
+            if not arquivo.filename.lower().endswith('.json'):
+                flash('Por favor, selecione apenas arquivos .json!', 'error')
+                return redirect(url_for('listar_equipes_inteligentes'))
+            
+            # Ler e validar o JSON
+            try:
+                equipe_data = json.loads(arquivo.read().decode('utf-8'))
+            except json.JSONDecodeError:
+                flash('O arquivo não contém um JSON válido!', 'error')
+                return redirect(url_for('listar_equipes_inteligentes'))
+            
+            # Criar nova equipe
+            nova_equipe = EquipeInteligente(
+                nome=equipe_data.get('nome', 'Equipe Importada'),
+                descricao=equipe_data.get('descricao', ''),
+                processo=equipe_data.get('processo', ''),
+                layout=equipe_data.get('layout', '{"nodes": [], "connections": []}'),
+                menu_ordem=equipe_data.get('menu_ordem', 0)
+            )
+            
+            db.session.add(nova_equipe)
+            db.session.commit()
+            
+            flash(f'Equipe "{nova_equipe.nome}" importada com sucesso!', 'success')
+            return redirect(url_for('listar_equipes_inteligentes'))
+            
+        except Exception as e:
+            flash(f'Erro ao importar equipe: {str(e)}', 'error')
+            return redirect(url_for('listar_equipes_inteligentes'))
 
     @staticmethod
     def listar_execucoes(equipe_id=None):
