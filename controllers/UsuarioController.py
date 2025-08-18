@@ -183,16 +183,62 @@ class UsuarioController:
         return redirect(url_for('minhaconta'))
     
     @staticmethod
+    def _gerar_html_tabela_apis():
+        """Método auxiliar para gerar HTML da tabela de APIs"""
+        apis_ia = ApiIa.query.all()
+        if not apis_ia:
+            return '<tr><td colspan="8" class="text-center text-muted">Nenhuma API cadastrada.</td></tr>'
+        
+        html = ''
+        for api_item in apis_ia:
+            # Gerar o botão de ativar/desativar
+            if api_item.ativo:
+                ativar_btn = f'<a href="/minhaconta/apiia/{api_item.id}/desativar" class="btn btn-success api" title="Clique para desativar" hx-get="/minhaconta/apiia/{api_item.id}/desativar" hx-target="closest tbody" hx-swap="innerHTML">Ativo</a>'
+            else:
+                ativar_btn = f'<a href="/minhaconta/apiia/{api_item.id}/ativar" class="btn btn-secondary api" title="Clique para ativar" hx-get="/minhaconta/apiia/{api_item.id}/ativar" hx-target="closest tbody" hx-swap="innerHTML">Inativo</a>'
+            
+            # Gerar o HTML da linha
+            html += f'''
+            <tr>
+                <td>{api_item.nome}</td>
+                <td>{ativar_btn}</td>
+                <td>{api_item.api_key[:10] if api_item.api_key else ""}...</td>
+                <td>{api_item.modelo_chat or ""}</td>
+                <td>{api_item.modelo_voz or ""}</td>
+                <td>{api_item.modelo_visao or ""}</td>
+                <td>{api_item.endpoint or ""}</td>
+                <td nowrap>
+                    <button class="btn btn-sm btn-info btn-testar-api me-1" data-api-id="{api_item.id}" data-api-nome="{api_item.nome}" type="button" title="Testar API">
+                        <i class="fas fa-play"></i> Testar
+                    </button>
+                    <button class="btn btn-sm btn-warning btn-editar-api me-1" data-api-id="{api_item.id}" data-api-nome="{api_item.nome}" data-api-key="{api_item.api_key or ""}" data-modelo-chat="{api_item.modelo_chat or ""}" data-modelo-voz="{api_item.modelo_voz or ""}" data-modelo-visao="{api_item.modelo_visao or ""}" data-endpoint="{api_item.endpoint or ""}" type="button" title="Editar API">
+                        <i class="fas fa-edit"></i> Editar
+                    </button>
+                    <button class="btn btn-sm btn-danger btn-excluir-api" data-api-id="{api_item.id}" hx-get="/minhaconta/apiia/{api_item.id}/excluir" hx-target="closest tr" hx-swap="outerHTML remove" type="button">
+                        Excluir
+                    </button>
+                </td>
+            </tr>
+            '''
+        return html
+
+    @staticmethod
     def apiia_ativar(id):
         """Ativa uma API de IA"""
         api = ApiIa.query.get(id)
         if not api:
+            if request.headers.get('HX-Request'):
+                return '<tr><td colspan="8" class="text-center text-danger">API não encontrada!</td></tr>'
             flash('API não encontrada!', 'error')
             return redirect(url_for('minhaconta'))
         
         api.ativo = True
         from config import db
         db.session.commit()
+        
+        # Se for requisição HTMX, retornar apenas o HTML da tabela atualizada
+        if request.headers.get('HX-Request'):
+            return UsuarioController._gerar_html_tabela_apis()
         
         flash('API ativada com sucesso!', 'success')
         return redirect(url_for('minhaconta'))
@@ -202,12 +248,18 @@ class UsuarioController:
         """Desativa uma API de IA"""
         api = ApiIa.query.get(id)
         if not api:
+            if request.headers.get('HX-Request'):
+                return '<tr><td colspan="8" class="text-center text-danger">API não encontrada!</td></tr>'
             flash('API não encontrada!', 'error')
             return redirect(url_for('minhaconta'))
         
         api.ativo = False
         from config import db
         db.session.commit()
+        
+        # Se for requisição HTMX, retornar apenas o HTML da tabela atualizada
+        if request.headers.get('HX-Request'):
+            return UsuarioController._gerar_html_tabela_apis()
         
         flash('API desativada com sucesso!', 'success')
         return redirect(url_for('minhaconta'))

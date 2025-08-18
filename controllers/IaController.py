@@ -665,9 +665,8 @@ def testar_openai_api_requests(api):
                     "content": "Olá! Responda apenas com 'API funcionando corretamente!'"
                 }
             ],
-            "max_tokens": 50
         }
-        
+                
         response = make_post_request_with_retry(
             url=url,
             headers=headers,
@@ -980,8 +979,7 @@ def testar_openai_chatbot_requests(api, mensagem):
                     "role": "user",
                     "content": mensagem
                 }
-            ],
-            "max_tokens": 500
+            ]
         }
         
         response = requests.post(url, headers=headers, json=payload, timeout=30)
@@ -1263,7 +1261,6 @@ def groq_visao_openai_requests(api_ia, prompt, imagens_base64, conversa):
         payload = {
             "model": api_ia.modelo_visao or api_ia.modelo_chat,  # Usar modelo_visao se disponível
             "messages": messages,
-            "max_tokens": 4000
         }
         
         response = requests.post(url, headers=headers, json=payload, timeout=60)

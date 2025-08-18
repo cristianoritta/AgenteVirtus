@@ -824,6 +824,18 @@ class PdfController:
                     nome_arquivo = f'pagina_{pagina_idx + 1}.pdf'
                     zip_file.writestr(nome_arquivo, pdf_buffer.getvalue())
 
+                # Agrupe todas as paginas em um unico PDF
+                pdf_writer = PdfWriter()
+                for pagina_idx in paginas_ordenadas:
+                    pdf_writer.add_page(pdf_reader.pages[pagina_idx])
+                    
+                # Adicionar o PDF final ao ZIP
+                pdf_buffer = io.BytesIO()
+                pdf_writer.write(pdf_buffer)
+                pdf_buffer.seek(0)
+                zip_file.writestr('todas_paginas.pdf', pdf_buffer.getvalue())
+            
+
             # Retornar o ZIP
             zip_buffer.seek(0)
             return send_file(
@@ -922,3 +934,168 @@ class PdfController:
                 'status': 'error',
                 'message': f'Erro ao fazer OCR: {str(e)}'
             }), 500
+
+
+    @staticmethod
+    def comprimir_pdf():
+        """Comprimir PDF reduzindo qualidade de imagens e otimizando o arquivo"""
+        if request.method == 'GET':
+            return render_template('pdf/comprimir.html')
+        
+        # Configurações de compressão por nível
+        compression_config = {
+            'baixo': {'image_quality': 80, 'scale_factor': 0.9},
+            'medio': {'image_quality': 60, 'scale_factor': 0.75},
+            'alto': {'image_quality': 40, 'scale_factor': 0.6}
+        }
+        
+        temp_file_path = None
+        doc = None
+        
+        try:
+            # Validar arquivo
+            file = request.files.get('pdf')
+            if not file or not file.filename or not file.filename.lower().endswith('.pdf'):
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Nenhum arquivo PDF válido foi enviado'
+                }), 400
+
+            # Obter configuração de compressão
+            nivel_compressao = request.form.get('nivel_compressao', 'medio')
+            if nivel_compressao not in compression_config:
+                nivel_compressao = 'medio'
+            
+            config = compression_config[nivel_compressao]
+            image_quality = config['image_quality']
+            scale_factor = config['scale_factor']
+
+            # Criar arquivo temporário
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.pdf')
+            temp_file_path = temp_file.name
+            file.save(temp_file_path)
+            temp_file.close()
+            
+            # Obter tamanho original
+            tamanho_original = os.path.getsize(temp_file_path)
+            
+            # Abrir e validar PDF
+            doc = fitz.open(temp_file_path)
+            if doc.page_count == 0:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'PDF inválido ou corrompido'
+                }), 400
+
+            # Comprimir imagens em todas as páginas
+            for page_num in range(doc.page_count):
+                page = doc[page_num]
+                image_list = page.get_images(full=True)
+                
+                for img_index, img in enumerate(image_list):
+                    xref = img[0]
+                    try:
+                        # Extrair imagem
+                        base_image = doc.extract_image(xref)
+                        image_bytes = base_image["image"]
+                        pix = fitz.Pixmap(image_bytes)
+                        
+                        # Verificar se pode ser comprimida (sem transparência complexa)
+                        if pix.n - pix.alpha < 4:
+                            # Redimensionar se necessário
+                            if scale_factor < 1.0:
+                                mat = fitz.Matrix(scale_factor, scale_factor)
+                                pix_resized = fitz.Pixmap(pix, mat)
+                                pix.clear()
+                                pix = pix_resized
+                            
+                            # Comprimir baseado no tipo da imagem
+                            if pix.colorspace and pix.colorspace.name != "GRAY":
+                                compressed_bytes = pix.tobytes("jpeg", image_quality)
+                            else:
+                                # Para escala de cinza, PNG pode ser melhor
+                                compressed_bytes = pix.tobytes("png")
+                            
+                            # Atualizar imagem no documento
+                            doc.update_stream(xref, compressed_bytes)
+                        
+                        # Limpar memória
+                        pix.clear()
+                        pix = None
+                        
+                    except Exception as e:
+                        print(f"Aviso: Erro ao comprimir imagem {img_index} na página {page_num}: {e}")
+                        continue
+
+            # Otimizar conteúdo das páginas
+            for page_num in range(doc.page_count):
+                try:
+                    page = doc[page_num]
+                    page.clean_contents()
+                except Exception as e:
+                    print(f"Aviso: Erro ao otimizar página {page_num}: {e}")
+                    continue
+
+            # Gerar PDF otimizado
+            output = io.BytesIO()
+            doc.save(
+                output,
+                garbage=4,              # Nível máximo de limpeza
+                deflate=True,           # Compressão deflate
+                clean=True,             # Limpar conteúdo
+                ascii=False,            # Manter encoding binário
+                expand=0,               # Não expandir objetos
+                linear=False,           # Não linearizar
+                pretty=False,           # Não formatar para legibilidade
+                deflate_images=True,    # Comprimir imagens
+                deflate_fonts=True      # Comprimir fontes
+            )
+            output.seek(0)
+
+            # Calcular estatísticas
+            tamanho_comprimido = len(output.getvalue())
+            reducao_percentual = round(((tamanho_original - tamanho_comprimido) / tamanho_original) * 100, 1) if tamanho_original > 0 else 0
+            
+            # Log das estatísticas
+            print(f"=== Compressão PDF ===")
+            print(f"Original: {tamanho_original:,} bytes ({tamanho_original/1024/1024:.2f} MB)")
+            print(f"Comprimido: {tamanho_comprimido:,} bytes ({tamanho_comprimido/1024/1024:.2f} MB)")
+            print(f"Redução: {reducao_percentual}%")
+            print(f"Nível: {nivel_compressao} (Qualidade: {image_quality}%, Escala: {scale_factor})")
+            print(f"======================")
+
+            return send_file(
+                output,
+                as_attachment=True,
+                download_name=f'pdf_comprimido_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf',
+                mimetype='application/pdf'
+            )
+
+        except fitz.fitz.FileDataError:
+            return jsonify({
+                'status': 'error',
+                'message': 'Arquivo PDF corrompido ou inválido'
+            }), 500
+        except MemoryError:
+            return jsonify({
+                'status': 'error',
+                'message': 'Arquivo muito grande para processamento'
+            }), 500
+        except Exception as e:
+            return jsonify({
+                'status': 'error',
+                'message': f'Erro ao comprimir PDF: {str(e)}'
+            }), 500
+        finally:
+            # Cleanup garantido
+            if doc:
+                try:
+                    doc.close()
+                except Exception:
+                    pass
+            
+            if temp_file_path and os.path.exists(temp_file_path):
+                try:
+                    os.unlink(temp_file_path)
+                except Exception:
+                    pass

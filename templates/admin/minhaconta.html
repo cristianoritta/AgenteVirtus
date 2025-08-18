@@ -147,7 +147,7 @@
                             </tr>
                             {% else %}
                             <tr>
-                                <td colspan="7" class="text-center text-muted">Nenhuma API cadastrada.</td>
+                                <td colspan="8" class="text-center text-muted">Nenhuma API cadastrada.</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -302,6 +302,13 @@
 <script src="https://unpkg.com/htmx.org@1.9.2"></script>
 <script>
     document.addEventListener('click', function (e) {
+        // Prevenir comportamento padrão para botões com classe 'api' (ativar/desativar)
+        if (e.target.classList.contains('api')) {
+            e.preventDefault();
+            // Deixar o HTMX processar o clique
+            return;
+        }
+        
         if (e.target.classList.contains('btn-excluir-api')) {
             const btn = e.target;
             const apiId = btn.getAttribute('data-api-id');

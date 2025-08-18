@@ -36,7 +36,7 @@ def init_routes(app):
     
     @app.route('/minhaconta/apiia/adicionar', methods=['POST'])
     def apiia_adicionar():
-        return UsuarioController.apiia_adicionar()
+        return UsuarioController.apiia_criar()
 
     @app.route('/minhaconta/apiia/<int:id>/editar', methods=['GET', 'POST'])
     def apiia_editar(id):
@@ -285,6 +285,10 @@ def init_routes(app):
     def pdf_ocr():
         return PdfController.ocr_pdf()
     
+    @app.route('/pdf/comprimir', methods=['GET', 'POST'])
+    def pdf_comprimir():
+        return PdfController.comprimir_pdf()
+    
     ##########################################################################################################
     # Pesquisar
     ##########################################################################################################
@@ -441,6 +445,21 @@ def init_routes(app):
     @app.route('/api/notas/<int:nota_id>/categoria', methods=['PUT'])
     def api_atualizar_categoria_nota(nota_id):
         return NotasController.api_atualizar_categoria_nota(nota_id)
+    
+    # API para download de todas as notas
+    @app.route('/api/notas/download', methods=['GET'])
+    def api_download_notas():
+        return NotasController.api_download_notas()
+    
+    # API para listar equipes inteligentes
+    @app.route('/api/agentes/equipes', methods=['GET'])
+    def api_listar_equipes():
+        return AgentesController.api_listar_equipes()
+    
+    # API para executar equipe com nota
+    @app.route('/api/agentes/equipe/<int:equipe_id>/executar', methods=['POST'])
+    def api_executar_equipe_com_nota(equipe_id):
+        return AgentesController.api_executar_equipe_com_nota(equipe_id)
     
     ##########################################################################################################
     # Teste da API de IA

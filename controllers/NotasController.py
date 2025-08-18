@@ -1,10 +1,13 @@
-from flask import render_template, request, jsonify, redirect, url_for, flash
+from flask import render_template, request, jsonify, redirect, url_for, flash, send_file
 from config import db
 from models.models import Nota, CategoriaNota, VinculoNota, Usuario
 from datetime import datetime
 import controllers.IaController as IaController
 import json
 import re
+import zipfile
+import io
+import os
 
 class NotasController:
     
@@ -375,13 +378,20 @@ class NotasController:
                 # Verificar se a nota destino existe
                 nota_destino = Nota.query.get(nota_destino_id)
                 if nota_destino:
-                    vinculo = VinculoNota(
+                    # Verificar se o vínculo já existe para evitar duplicatas
+                    vinculo_existente = VinculoNota.query.filter_by(
                         nota_origem_id=nota_id,
-                        nota_destino_id=nota_destino_id,
-                        tipo_vinculo=vinculo_data.get('tipo_vinculo', 'relacionada'),
-                        descricao=vinculo_data.get('descricao')
-                    )
-                    db.session.add(vinculo)
+                        nota_destino_id=nota_destino_id
+                    ).first()
+                    
+                    if not vinculo_existente:
+                        vinculo = VinculoNota(
+                            nota_origem_id=nota_id,
+                            nota_destino_id=nota_destino_id,
+                            tipo_vinculo=vinculo_data.get('tipo_vinculo', 'relacionada'),
+                            descricao=vinculo_data.get('descricao')
+                        )
+                        db.session.add(vinculo)
     
     @staticmethod
     def api_estatisticas():
@@ -449,6 +459,88 @@ class NotasController:
             
         except Exception as e:
             db.session.rollback()
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @staticmethod
+    def api_download_notas():
+        """API para download de todas as notas em formato ZIP com JSON"""
+        try:
+            # Buscar todas as notas com suas categorias e vínculos
+            notas = Nota.query.all()
+            
+            # Criar arquivo ZIP em memória
+            zip_buffer = io.BytesIO()
+            
+            with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+                for nota in notas:
+                    # Preparar dados da nota para JSON
+                    nota_data = {
+                        'id': nota.id,
+                        'titulo': nota.titulo,
+                        'conteudo': nota.conteudo,
+                        'resumo': nota.resumo,
+                        'tags': nota.tags,
+                        'categoria_id': nota.categoria_id,
+                        'categoria_nome': nota.categoria.nome if nota.categoria else None,
+                        'categoria_cor': nota.categoria.cor if nota.categoria else None,
+                        'favorita': nota.favorita,
+                        'arquivada': nota.arquivada,
+                        'criada_em': nota.criada_em.isoformat() if nota.criada_em else None,
+                        'atualizada_em': nota.atualizada_em.isoformat() if nota.atualizada_em else None,
+                        'usuario_id': nota.usuario_id
+                    }
+                    
+                    # Adicionar vínculos
+                    vinculos_origem = []
+                    for vinculo in nota.vinculos_origem:
+                        vinculos_origem.append({
+                            'id': vinculo.id,
+                            'nota_destino_id': vinculo.nota_destino_id,
+                            'nota_destino_titulo': vinculo.nota_destino.titulo,
+                            'tipo_vinculo': vinculo.tipo_vinculo,
+                            'descricao': vinculo.descricao,
+                            'criado_em': vinculo.criado_em.isoformat() if vinculo.criado_em else None
+                        })
+                    
+                    vinculos_destino = []
+                    for vinculo in nota.vinculos_destino:
+                        vinculos_destino.append({
+                            'id': vinculo.id,
+                            'nota_origem_id': vinculo.nota_origem_id,
+                            'nota_origem_titulo': vinculo.nota_origem.titulo,
+                            'tipo_vinculo': vinculo.tipo_vinculo,
+                            'descricao': vinculo.descricao,
+                            'criado_em': vinculo.criado_em.isoformat() if vinculo.criado_em else None
+                        })
+                    
+                    nota_data['vinculos_origem'] = vinculos_origem
+                    nota_data['vinculos_destino'] = vinculos_destino
+                    
+                    # Criar nome do arquivo baseado no título da nota
+                    # Remover caracteres inválidos para nome de arquivo
+                    nome_arquivo = re.sub(r'[<>:"/\\|?*]', '_', nota.titulo)
+                    nome_arquivo = nome_arquivo.strip()
+                    if not nome_arquivo:
+                        nome_arquivo = f"nota_{nota.id}"
+                    
+                    # Adicionar ao ZIP
+                    zip_file.writestr(f"{nome_arquivo}.json", json.dumps(nota_data, indent=2, ensure_ascii=False))
+            
+            # Posicionar o buffer no início
+            zip_buffer.seek(0)
+            
+            # Retornar o arquivo ZIP
+            return send_file(
+                zip_buffer,
+                mimetype='application/zip',
+                as_attachment=True,
+                download_name=f'notas_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.zip'
+            )
+            
+        except Exception as e:
             return jsonify({
                 'success': False,
                 'error': str(e)

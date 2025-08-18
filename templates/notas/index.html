@@ -8,9 +8,14 @@
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0"><i class="fas fa-sticky-note me-2"></i>Minhas Notas</h5>
-                    <button class="btn btn-sm btn-light" onclick="abrirModalNovaNota()">
-                        <i class="fas fa-plus"></i>
-                    </button>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-light" onclick="abrirModalNovaNota()" title="Nova nota">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                        <button class="btn btn-sm btn-light" onclick="downloadTodasNotas()" title="Download de todas as notas">
+                            <i class="fas fa-download"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body p-0">
                     <!-- Filtros -->
@@ -113,29 +118,56 @@
                             </button>
                         </div>
 
-                        <!-- Seção de vínculos -->
-                        <div class="mb-3">
-                            <label class="form-label">Vínculos com outras notas:</label>
-                            <div id="vinculos-container">
-                                <div class="input-group mb-2">
-                                    <select class="form-select" id="select-vinculo">
-                                        <option value="">Selecione uma nota...</option>
-                                    </select>
-                                    <select class="form-select" id="tipo-vinculo">
-                                        <option value="relacionada">Relacionada</option>
-                                        <option value="referencia">Referência</option>
-                                        <option value="complementa">Complementa</option>
-                                        <option value="contradiz">Contradiz</option>
-                                    </select>
-                                    <button class="btn btn-outline-primary" type="button" onclick="adicionarVinculo()">
-                                        <i class="fas fa-link"></i>
-                                    </button>
-                                </div>
-                                <div id="lista-vinculos">
-                                    <!-- Vínculos serão listados aqui -->
-                                </div>
-                            </div>
-                        </div>
+                                                 <!-- Seção de vínculos -->
+                         <div class="mb-3">
+                             <label class="form-label">Vínculos com outras notas:</label>
+                             <div id="vinculos-container">
+                                 <div class="input-group mb-2">
+                                     <select class="form-select" id="select-vinculo">
+                                         <option value="">Selecione uma nota...</option>
+                                     </select>
+                                     <select class="form-select" id="tipo-vinculo">
+                                         <option value="relacionada">Relacionada</option>
+                                         <option value="referencia">Referência</option>
+                                         <option value="complementa">Complementa</option>
+                                         <option value="contradiz">Contradiz</option>
+                                     </select>
+                                     <button class="btn btn-outline-primary" type="button" onclick="adicionarVinculo()">
+                                         <i class="fas fa-link"></i>
+                                     </button>
+                                 </div>
+                                 <div id="lista-vinculos">
+                                     <!-- Vínculos serão listados aqui -->
+                                 </div>
+                             </div>
+                         </div>
+
+                         <!-- Seção de execução de agentes -->
+                         <div class="card border-primary">
+                             <div class="card-header">
+                                 <h6 class="mb-0"><i class="fas fa-robot me-2"></i>Executar Agente</h6>
+                             </div>
+                             <div class="card-body">
+                                 <div class="mb-3">
+                                     <label class="form-label">Selecione um agente para executar com esta nota:</label>
+                                     <div class="input-group">
+                                         <select class="form-select" id="select-agente">
+                                             <option value="">Carregando agentes...</option>
+                                         </select>
+                                         <button class="btn btn-primary" type="button" onclick="executarAgente()" id="btn-executar-agente" disabled>
+                                             <i class="fas fa-play"></i> Executar
+                                         </button>
+                                     </div>
+                                     <small class="text-muted">O agente será executado usando o conteúdo desta nota como entrada</small>
+                                 </div>
+                                 <div id="resultado-agente" style="display: none;">
+                                     <div class="alert alert-info">
+                                         <h6><i class="fas fa-info-circle"></i> Resultado da Execução:</h6>
+                                         <div id="conteudo-resultado-agente"></div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
                     </div>
 
                     <div id="nota-vazia" class="text-center py-5">
@@ -208,15 +240,17 @@
 
 {% block scripts %}
 <script>
-    let notaAtual = null;
-    let categorias = [];
-    let todasNotas = [];
-    let vinculosTemp = [];
+         let notaAtual = null;
+     let categorias = [];
+     let todasNotas = [];
+     let vinculosTemp = [];
+     let agentes = [];
 
-    // Inicialização
-    document.addEventListener('DOMContentLoaded', function () {
-        carregarNotas();
-        carregarCategorias();
+         // Inicialização
+     document.addEventListener('DOMContentLoaded', function () {
+         carregarNotas();
+         carregarCategorias();
+         carregarAgentes();
 
         // Event listeners
         document.getElementById('busca-notas').addEventListener('keyup', function (e) {
@@ -320,7 +354,7 @@
             <div class="d-flex justify-content-between align-items-center">
                 ${categoriaHtml}
                 <small class="text-muted">
-                    <i class="fas fa-link"></i> ${nota.vinculos_count}
+                    <i class="fas fa-link"></i> ${nota.vinculos_count || 0}
                 </small>
             </div>
         `;
@@ -397,11 +431,15 @@
             nota.arquivada ? '<i class="fas fa-archive"></i>' : '<i class="fas fa-archive"></i>';
 
         // Atualizar título e meta
+        const totalVinculos = (nota.vinculos_origem ? nota.vinculos_origem.length : 0) + 
+                             (nota.vinculos_destino ? nota.vinculos_destino.length : 0);
         document.getElementById('nota-meta').textContent =
-            `Atualizada em ${formatarData(nota.atualizada_em)} • ${nota.vinculos_count} vínculos`;
+            `Atualizada em ${formatarData(nota.atualizada_em)} • ${totalVinculos} vínculos`;
 
-        // Vínculos
+        // Vínculos - incluir tanto origem quanto destino
         vinculosTemp = [];
+        
+        // Vínculos de origem (notas que esta nota aponta)
         if (nota.vinculos_origem) {
             nota.vinculos_origem.forEach(v => {
                 vinculosTemp.push({
@@ -409,7 +447,22 @@
                     nota_destino_titulo: v.nota_destino_titulo,
                     tipo_vinculo: v.tipo_vinculo,
                     descricao: v.descricao,
-                    id: v.id
+                    id: v.id,
+                    direcao: 'origem'
+                });
+            });
+        }
+        
+        // Vínculos de destino (notas que apontam para esta nota)
+        if (nota.vinculos_destino) {
+            nota.vinculos_destino.forEach(v => {
+                vinculosTemp.push({
+                    nota_origem_id: v.nota_origem_id,
+                    nota_origem_titulo: v.nota_origem_titulo,
+                    tipo_vinculo: v.tipo_vinculo,
+                    descricao: v.descricao,
+                    id: v.id,
+                    direcao: 'destino'
                 });
             });
         }
@@ -445,7 +498,7 @@
             categoria_id: document.getElementById('select-categoria').value || null,
             favorita: notaAtual.favorita,
             arquivada: notaAtual.arquivada,
-            vinculos: vinculosTemp
+            vinculos: vinculosTemp.filter(v => v.direcao === 'origem') // Enviar apenas vínculos de origem
         };
 
         fetch('/api/nota/atualizar', {
@@ -759,22 +812,60 @@
             container.innerHTML = '<span class="text-muted">Nenhum vínculo adicionado</span>';
             return;
         }
-        vinculosTemp.forEach((v, idx) => {
-            const div = document.createElement('div');
-            div.className = 'd-flex justify-content-between align-items-center p-2 border rounded mb-1';
-            div.innerHTML = `
-            <div>
-                <strong>${v.nota_destino_titulo}</strong>
-                <br><small class="text-muted">${v.tipo_vinculo}</small>
-            </div>
-            <div>
-                <button class="btn btn-sm btn-outline-danger" onclick="removerVinculoTemp(${idx})">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-        `;
-            container.appendChild(div);
-        });
+        
+        // Separar vínculos por direção
+        const vinculosOrigem = vinculosTemp.filter(v => v.direcao === 'origem');
+        const vinculosDestino = vinculosTemp.filter(v => v.direcao === 'destino');
+        
+        // Vínculos de origem (notas que esta nota aponta)
+        if (vinculosOrigem.length > 0) {
+            const origemDiv = document.createElement('div');
+            origemDiv.className = 'mb-3';
+            origemDiv.innerHTML = '<h6 class="text-primary"><i class="fas fa-arrow-right"></i> Vínculos para outras notas:</h6>';
+            container.appendChild(origemDiv);
+            
+            vinculosOrigem.forEach((v, idx) => {
+                const originalIdx = vinculosTemp.indexOf(v);
+                const div = document.createElement('div');
+                div.className = 'd-flex justify-content-between align-items-center p-2 border rounded mb-1 bg-light';
+                div.innerHTML = `
+                <div>
+                    <strong>${v.nota_destino_titulo}</strong>
+                    <br><small class="text-muted">${v.tipo_vinculo}</small>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-danger" onclick="removerVinculoTemp(${originalIdx})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `;
+                container.appendChild(div);
+            });
+        }
+        
+        // Vínculos de destino (notas que apontam para esta nota)
+        if (vinculosDestino.length > 0) {
+            const destinoDiv = document.createElement('div');
+            destinoDiv.className = 'mb-3';
+            destinoDiv.innerHTML = '<h6 class="text-success"><i class="fas fa-arrow-left"></i> Vínculos de outras notas:</h6>';
+            container.appendChild(destinoDiv);
+            
+            vinculosDestino.forEach((v, idx) => {
+                const originalIdx = vinculosTemp.indexOf(v);
+                const div = document.createElement('div');
+                div.className = 'd-flex justify-content-between align-items-center p-2 border rounded mb-1 bg-light';
+                div.innerHTML = `
+                <div>
+                    <strong>${v.nota_origem_titulo}</strong>
+                    <br><small class="text-muted">${v.tipo_vinculo}</small>
+                </div>
+                <div>
+                    <small class="text-muted">Vínculo recebido</small>
+                </div>
+            `;
+                container.appendChild(div);
+            });
+        }
     }
 
     function renderizarSelectVinculo() {
@@ -783,8 +874,11 @@
         select.innerHTML = '<option value="">Selecione uma nota...</option>';
         todasNotas.forEach(nota => {
             if (idAtual && nota.id === idAtual) return; // Não pode vincular a si mesma
-            // Não mostrar notas já vinculadas
-            if (vinculosTemp.some(v => v.nota_destino_id === nota.id)) return;
+            // Não mostrar notas já vinculadas (em qualquer direção)
+            if (vinculosTemp.some(v => 
+                (v.direcao === 'origem' && v.nota_destino_id === nota.id) ||
+                (v.direcao === 'destino' && v.nota_origem_id === nota.id)
+            )) return;
             select.innerHTML += `<option value="${nota.id}">${nota.titulo}</option>`;
         });
     }
@@ -800,16 +894,27 @@
             nota_destino_id: nota.id,
             nota_destino_titulo: nota.titulo,
             tipo_vinculo: tipo,
-            descricao: ''
+            descricao: '',
+            direcao: 'origem'
         });
         renderizarVinculosTemp();
         renderizarSelectVinculo();
+        
+        // Salvar automaticamente a nota com o novo vínculo
+        if (notaAtual) {
+            salvarNota(true);
+        }
     }
 
     function removerVinculoTemp(idx) {
         vinculosTemp.splice(idx, 1);
         renderizarVinculosTemp();
         renderizarSelectVinculo();
+        
+        // Salvar automaticamente a nota após remover o vínculo
+        if (notaAtual) {
+            salvarNota(true);
+        }
     }
 
     // Funções auxiliares
@@ -867,6 +972,168 @@
         } else {
             alert(mensagem);
         }
+    }
+
+         // Funções de agentes
+     function carregarAgentes() {
+         fetch('/api/agentes/equipes')
+             .then(response => response.json())
+             .then(data => {
+                 if (data.success) {
+                     agentes = data.equipes;
+                     renderizarSelectAgentes();
+                 } else {
+                     console.error('Erro ao carregar agentes:', data.error);
+                 }
+             })
+             .catch(error => console.error('Erro ao carregar agentes:', error));
+     }
+
+     function renderizarSelectAgentes() {
+         const select = document.getElementById('select-agente');
+         select.innerHTML = '<option value="">Selecione um agente...</option>';
+         
+         agentes.forEach(agente => {
+             select.innerHTML += `<option value="${agente.id}">${agente.nome}</option>`;
+         });
+         
+         // Habilitar/desabilitar botão baseado na seleção
+         select.addEventListener('change', function() {
+             const btnExecutar = document.getElementById('btn-executar-agente');
+             btnExecutar.disabled = !this.value;
+         });
+     }
+
+     function executarAgente() {
+         if (!notaAtual) {
+             mostrarMensagem('Nenhuma nota selecionada', 'error');
+             return;
+         }
+
+         const agenteId = document.getElementById('select-agente').value;
+         if (!agenteId) {
+             mostrarMensagem('Selecione um agente', 'error');
+             return;
+         }
+
+         // Preparar JSON da nota atual
+         const notaJson = {
+             id: notaAtual.id,
+             titulo: notaAtual.titulo,
+             conteudo: notaAtual.conteudo,
+             resumo: notaAtual.resumo,
+             categoria: notaAtual.categoria_nome,
+             favorita: notaAtual.favorita,
+             arquivada: notaAtual.arquivada,
+             criada_em: notaAtual.criada_em,
+             atualizada_em: notaAtual.atualizada_em,
+             vinculos: vinculosTemp
+         };
+
+         // Mostrar loading
+         const btnExecutar = document.getElementById('btn-executar-agente');
+         const textoOriginal = btnExecutar.innerHTML;
+         btnExecutar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Executando...';
+         btnExecutar.disabled = true;
+
+         // Esconder resultado anterior
+         document.getElementById('resultado-agente').style.display = 'none';
+
+         fetch(`/api/agentes/equipe/${agenteId}/executar`, {
+             method: 'POST',
+             headers: {
+                 'Content-Type': 'application/json',
+             },
+             body: JSON.stringify({
+                 nota_json: JSON.stringify(notaJson, null, 2)
+             })
+         })
+         .then(response => response.json())
+         .then(data => {
+             if (data.success) {
+                 // Mostrar resultado
+                 document.getElementById('conteudo-resultado-agente').innerHTML = `
+                     <p><strong>Status:</strong> ${data.message}</p>
+                     <p><strong>ID da Execução:</strong> ${data.execucao_id}</p>
+                     <p><strong>Resposta:</strong></p>
+                     <pre class="bg-light p-2 rounded">${data.resposta}</pre>
+                 `;
+                 document.getElementById('resultado-agente').style.display = 'block';
+                 
+                 mostrarMensagem('Agente executado com sucesso!', 'success');
+             } else {
+                 mostrarMensagem('Erro ao executar agente: ' + data.error, 'error');
+             }
+         })
+         .catch(error => {
+             console.error('Erro ao executar agente:', error);
+             mostrarMensagem('Erro ao executar agente', 'error');
+         })
+         .finally(() => {
+             // Restaurar botão
+             btnExecutar.innerHTML = textoOriginal;
+             btnExecutar.disabled = false;
+         });
+     }
+
+     function downloadTodasNotas() {
+         // Mostrar loading
+         if (typeof Swal !== 'undefined') {
+             Swal.fire({
+                 title: 'Preparando download...',
+                 text: 'Gerando arquivo ZIP com todas as notas',
+                 allowOutsideClick: false,
+                 didOpen: () => {
+                     Swal.showLoading();
+                 }
+             });
+         }
+
+        fetch('/api/notas/download', {
+            method: 'GET'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Erro ao gerar download');
+            }
+            return response.blob();
+        })
+        .then(blob => {
+            // Criar link para download
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `notas_export_${new Date().toISOString().split('T')[0]}.zip`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            // Fechar loading e mostrar sucesso
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Download concluído!',
+                    text: 'Todas as notas foram exportadas com sucesso',
+                    icon: 'success',
+                    timer: 2000
+                });
+            } else {
+                alert('Download concluído! Todas as notas foram exportadas com sucesso');
+            }
+        })
+        .catch(error => {
+            console.error('Erro no download:', error);
+            if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                    title: 'Erro no download',
+                    text: 'Ocorreu um erro ao gerar o arquivo de download',
+                    icon: 'error'
+                });
+            } else {
+                alert('Erro no download: ' + error.message);
+            }
+        });
     }
 </script>
 {% endblock %}

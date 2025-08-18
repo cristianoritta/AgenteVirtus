@@ -472,37 +472,6 @@ Colunas: {', '.join(df.columns.tolist())}
                     db.session.commit()
 
                     print(f"DEBUG - Resposta do agente {node['id']}: {resposta_texto[:200]}...")
-                    print(f"DEBUG - Tipo de resposta_texto: {type(resposta_texto)}")
-                    print(f"DEBUG - Conteúdo completo de resposta_texto: {resposta_texto}")
-                    
-                    # Garantir que resposta_texto seja sempre uma string antes da concatenação
-                    if isinstance(resposta_texto, dict):
-                        print(f"DEBUG - resposta_texto é um dicionário, convertendo para string")
-                        if 'content' in resposta_texto:
-                            resposta_texto = resposta_texto['content']
-                        elif 'message' in resposta_texto and isinstance(resposta_texto['message'], dict) and 'content' in resposta_texto['message']:
-                            resposta_texto = resposta_texto['message']['content']
-                        else:
-                            resposta_texto = str(resposta_texto)
-                    elif not isinstance(resposta_texto, str):
-                        print(f"DEBUG - resposta_texto não é string, convertendo: {type(resposta_texto)}")
-                        resposta_texto = str(resposta_texto)
-                    
-                    node_id = node['id']
-                    
-                    print(f"DEBUG - type resposta_texto: {type(resposta_texto)}")
-                    print(f"DEBUG - resposta_texto: {resposta_texto}")
-                    print(f"DEBUG - node_id: {node_id}")
-                    
-
-                    print("*"*100)
-                    print(type(resposta_texto))
-                    print(resposta_texto)
-                    print("*"*100)
-                    print(type(texto))
-                    print(texto)
-                    print("*"*100)
-                    
                     
                     texto += f'{resposta_texto}\n\n\n'
                     respostas.append({
@@ -663,7 +632,7 @@ resultado = executar_codigo('''{texto_entrada}''')
                     print(f"*** Iniciando a tarefa (task) {node['id']} ***")
                     
                     # Obter a última resposta e garantir que seja uma string
-                    ultima_resposta = respostas[-1]['resposta']
+                    ultima_resposta = respostas[-1]['resposta'] if respostas else ''
 
                     # Se for uma tupla (Response, status_code), extrair o conteúdo
                     if isinstance(ultima_resposta, tuple):
@@ -791,7 +760,7 @@ resultado = executar_codigo('''{texto_entrada}''')
 
                     ### TEXTO PARA PROCESSAR ###
                     <texto_processar>
-                    {respostas[-1]['resposta']}
+                    {respostas[-1]['resposta'] if respostas else ''}
                     </texto_processar>
 
                     ### FORMATO DE SAÍDA ###
@@ -849,19 +818,6 @@ resultado = executar_codigo('''{texto_entrada}''')
                     print(f"DEBUG - Guardrail {node['id']} - Tipo de resposta_texto: {type(resposta_texto)}")
                     print(f"DEBUG - Guardrail {node['id']} - Conteúdo completo de resposta_texto: {resposta_texto}")
                     
-                    # Garantir que resposta_texto seja sempre uma string antes da concatenação
-                    if isinstance(resposta_texto, dict):
-                        print(f"DEBUG - Guardrail {node['id']} - resposta_texto é um dicionário, convertendo para string")
-                        if 'content' in resposta_texto:
-                            resposta_texto = resposta_texto['content']
-                        elif 'message' in resposta_texto and isinstance(resposta_texto['message'], dict) and 'content' in resposta_texto['message']:
-                            resposta_texto = resposta_texto['message']['content']
-                        else:
-                            resposta_texto = str(resposta_texto)
-                    elif not isinstance(resposta_texto, str):
-                        print(f"DEBUG - Guardrail {node['id']} - resposta_texto não é string, convertendo: {type(resposta_texto)}")
-                        resposta_texto = str(resposta_texto)
-
                     texto += f'<node_{node["id"]}>{resposta_texto}</node_{node["id"]}>\n\n\n'
                     respostas.append({
                         'resposta': resposta_texto,
@@ -874,7 +830,7 @@ resultado = executar_codigo('''{texto_entrada}''')
 
                 if node['type'] == 'formatoSaida':
                     # Obter o conteúdo da última resposta
-                    ultima_resposta = respostas[-1]['resposta']
+                    ultima_resposta = respostas[-1]['resposta'] if respostas else ''
 
                     # Se for uma tupla (Response, status_code), extrair o conteúdo
                     if isinstance(ultima_resposta, tuple):
@@ -983,103 +939,25 @@ resultado = executar_codigo('''{texto_entrada}''')
                         response = make_response(output.getvalue())
                         response.headers['Content-Disposition'] = f'attachment; filename={nome_arquivo}'
                         response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                        return response
+                        
+                        # Adicionar à lista de respostas
+                        respostas.append({
+                            'resposta': f"Arquivo gerado: {nome_arquivo}",
+                            'node': node,
+                            'arquivo_download': response
+                        })
 
             # Criar resumo final da execução
-            resumo_final = f"Execução completa. Total de etapas: {len(respostas)}. Última resposta: {respostas[-1]['resposta']}..."
+            resumo_final = f"Execução completa. Total de etapas: {len(respostas)}. Última resposta: {respostas[-1]['resposta'] if respostas else 'Nenhuma resposta'}..."
             execucao.resposta = resumo_final
             db.session.commit()
 
-            return render_template('agentes/resultado.html', resultado=respostas[-1]['resposta'], respostas=respostas, equipe=equipe)
-
-    @staticmethod
-    def listar_equipes_inteligentes():
-        """Lista todas as equipes inteligentes salvas"""
-        equipes = EquipeInteligente.query.order_by(
-            EquipeInteligente.criado_em.desc()).all()
-        
-        for i, equipe in enumerate(equipes):
-            layout = json.loads(equipe.layout) if isinstance(equipe.layout, str) else equipe.layout
-            
-            if len(layout['nodes']) > 0:
-                if layout['nodes'][-1]['type'] == 'formatoSaida':
-                    equipes[i].formato_saida = layout['nodes'][-1]['config']['type']
-                elif layout['nodes'][-1]['type'] == 'template':
-                    equipes[i].formato_saida = 'Template do Word'
-                else:
-                    equipes[i].formato_saida = 'Não definido'
-        
-        return render_template('agentes/equipes.html', equipes=equipes)
-
-    @staticmethod
-    def editar_equipe(id):
-        """Página para editar uma equipe"""
-        equipe = EquipeInteligente.query.get(id)
-
-        return render_template('agentes/canva.html', equipe=equipe)
-
-    @staticmethod
-    def deletar_equipe(id):
-        """Deleta uma equipe"""
-        try:
-            
-            # Apaga todas as execuções da equipe
-            ExecucaoEquipe.query.filter_by(equipe_id=id).delete()
-            db.session.commit()
-            
-            # Apaga a equipe
-            equipe = EquipeInteligente.query.get(id)
-            db.session.delete(equipe)
-            db.session.commit()
-            return redirect(url_for('listar_equipes_inteligentes'))
-        except Exception as e:
-            db.session.rollback()
-            print(f"Erro ao deletar equipe: {e}")
-            flash(f'Erro ao deletar equipe: {str(e)}', 'danger')
-            return jsonify({'status': 'error', 'message': f'Erro ao deletar equipe: {str(e)}'}), 500
-
-    @staticmethod
-    def download_equipe(id):
-        """Download de uma equipe"""
-        equipe = EquipeInteligente.query.get(id)
-
-        # Prepara um dicionário com os dados da equipe
-        equipe_data = {
-            'nome': equipe.nome,
-            'descricao': equipe.descricao,
-            'processo': equipe.processo,
-            'layout': json.loads(equipe.layout)
-        }
-
-        # Retorna um arquivo JSON para download
-        response = make_response(json.dumps(equipe_data))
-        response.headers['Content-Disposition'] = f'attachment; filename={equipe.nome.replace(" ", "_")}.json'
-        response.headers['Content-Type'] = 'application/json'
-        return response
-
-    @staticmethod
-    def importar_equipe():
-        """Importa uma equipe"""
-        arquivo = request.files['arquivo']
-
-        # Ler o conteúdo do arquivo
-        conteudo = arquivo.read()
-
-        # Converter o conteúdo para JSON
-        equipe_data = json.loads(conteudo)
-
-        # Criar a equipe
-        equipe = EquipeInteligente(
-            nome=equipe_data['nome'],
-            descricao=equipe_data['descricao'],
-            processo=equipe_data['processo'],
-            layout=json.dumps(equipe_data['layout'])
-        )
-
-        db.session.add(equipe)
-        db.session.commit()
-
-        return redirect(url_for('listar_equipes_inteligentes'))
+            return jsonify({
+                'success': True,
+                'message': 'Equipe executada com sucesso',
+                'execucao_id': execucao.id,
+                'resposta': respostas[-1]['resposta'] if respostas else 'Execução concluída'
+            })
 
     @staticmethod
     def gerar_arquivo_saida(conteudo, formato, nome_arquivo="resultado", equipe_id=None):
@@ -1637,3 +1515,706 @@ Regras importantes:
             import traceback
             traceback.print_exc()
             return jsonify({'status': 'error', 'message': f'Erro ao criar fluxo: {str(e)}'}), 500
+
+    @staticmethod
+    def api_listar_equipes():
+        """API para listar todas as equipes inteligentes"""
+        try:
+            equipes = EquipeInteligente.query.order_by(EquipeInteligente.criado_em.desc()).all()
+            
+            equipes_data = []
+            for equipe in equipes:
+                equipes_data.append({
+                    'id': equipe.id,
+                    'nome': equipe.nome,
+                    'descricao': equipe.descricao,
+                    'processo': equipe.processo
+                })
+            
+            return jsonify({
+                'success': True,
+                'equipes': equipes_data
+            })
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500
+
+    @staticmethod
+    def api_executar_equipe_com_nota(equipe_id):
+        """API para executar uma equipe com o conteúdo de uma nota"""
+        try:
+            data = request.get_json()
+            nota_json = data.get('nota_json', '{}')
+            
+            equipe = EquipeInteligente.query.get_or_404(equipe_id)
+            layout = json.loads(equipe.layout) if isinstance(equipe.layout, str) else equipe.layout
+
+            # Obter o usuário atual
+            usuario = Usuario.query.get(1)
+
+            texto = f"""<meta_parametros>
+            Meu nome: {usuario.nome}
+            Meu email: {usuario.email}
+            Data: {datetime.now().strftime('%d/%m/%Y')}
+            Hora: {datetime.now().strftime('%H:%M:%S')}
+            </meta_parametros>
+
+            <nota_json>
+            {nota_json}
+            </nota_json>
+            """
+
+            # Obter o último número de sprint para esta equipe
+            ultima_execucao = ExecucaoEquipe.query.filter_by(equipe_id=equipe_id).order_by(ExecucaoEquipe.sprint.desc()).first()
+            numero_sprint = (ultima_execucao.sprint or 0) + 1 if ultima_execucao else 1
+
+            # Criar registro de execução no banco de dados
+            execucao = ExecucaoEquipe(
+                equipe_id=equipe_id,
+                sprint=numero_sprint,
+                contexto=texto,
+                resposta="Execução iniciada"
+            )
+            db.session.add(execucao)
+            db.session.commit()
+
+            # Executar a equipe (processamento completo)
+            respostas = []
+            
+            ########################################################################################
+            # PROCESSA TODA A TAREFA, EM SEQUENCIA BASEADA NAS CONEXÕES
+            ########################################################################################
+            
+            # Determinar a ordem de execução baseada nas conexões
+            def determinar_ordem_execucao(nodes, connections):
+                """Determina a ordem correta de execução baseada nas conexões"""
+                # Criar um grafo direcionado
+                grafo = {}
+                nos_entrada = set()
+                nos_saida = set()
+                
+                print("Determinando a ordem de execução da equipe...")
+                
+                # Inicializar o grafo
+                for node in nodes:
+                    grafo[node['id']] = {'dependencias': set(), 'dependentes': set()}
+                
+                # Processar conexões
+                for connection in connections:
+                    start_node = connection['startNode']
+                    end_node = connection['endNode']
+                    
+                    # Adicionar dependência
+                    grafo[end_node]['dependencias'].add(start_node)
+                    grafo[start_node]['dependentes'].add(end_node)
+                    
+                    nos_entrada.add(start_node)
+                    nos_saida.add(end_node)
+                
+                # Encontrar nós iniciais (que não têm dependências)
+                nos_iniciais = set()
+                for node_id, info in grafo.items():
+                    if not info['dependencias']:
+                        nos_iniciais.add(node_id)
+                
+                # Ordenação topológica
+                ordem_execucao = []
+                nos_processados = set()
+                
+                def processar_no(node_id):
+                    if node_id in nos_processados:
+                        return
+                    
+                    # Verificar se todas as dependências foram processadas
+                    for dep in grafo[node_id]['dependencias']:
+                        if dep not in nos_processados:
+                            return
+                    
+                    ordem_execucao.append(node_id)
+                    nos_processados.add(node_id)
+                    
+                    # Processar dependentes
+                    for dep in grafo[node_id]['dependentes']:
+                        processar_no(dep)
+                
+                # Processar todos os nós iniciais
+                for node_id in nos_iniciais:
+                    processar_no(node_id)
+                
+                # Se ainda há nós não processados, adicionar no final
+                for node in nodes:
+                    if node['id'] not in ordem_execucao:
+                        ordem_execucao.append(node['id'])
+                
+                return ordem_execucao
+            
+            # Obter a ordem correta de execução
+            ordem_execucao = determinar_ordem_execucao(layout['nodes'], layout['connections'])
+            print(f"DEBUG: Ordem de execução: {ordem_execucao}")
+            
+            # Processar cada nó na ordem determinada pelas conexões
+            for node_id in ordem_execucao:
+                
+                # Encontrar o nó correspondente
+                node = None
+                for n in layout['nodes']:
+                    if n['id'] == node_id:
+                        node = n
+                        break
+                
+                if not node:
+                    continue
+                
+                if node['type'] == 'agent':
+                    
+                    print(f"*** Iniciando o 'agent' {node['id']} ***")
+                    
+                    # Montar o prompt para o agente
+                    prompt = f"""{node['config']['backstory']}
+                    ### TAREFA ###
+                    <tarefa>
+                    {node['config']['goal']}
+                    </tarefa>
+
+                    ### TEXTO PARA PROCESSAR ###
+                    <texto_processar>
+                    {texto}
+                    </texto_processar>
+                    """
+
+                    # Testar primeiro sem o arquivo base64
+                    resultado = IaController.groq(prompt)
+
+                    # Extrair a resposta do resultado
+                    if isinstance(resultado, tuple) and len(resultado) == 2:
+                        if hasattr(resultado[0], 'get_json'):
+                            resultado_data = resultado[0].get_json()
+                        else:
+                            resultado_data = resultado[0]
+                    elif isinstance(resultado, dict):
+                        resultado_data = resultado
+                    elif hasattr(resultado, 'get_json'):
+                        resultado_data = resultado.get_json()
+                    else:
+                        resultado_data = resultado
+
+                    if isinstance(resultado_data, dict) and 'resposta' in resultado_data:
+                        resposta_texto = resultado_data['resposta']
+                        # Garantir que resposta_texto seja sempre uma string
+                        if isinstance(resposta_texto, dict):
+                            # Se resposta_texto for um dicionário, extrair o conteúdo de texto
+                            if 'content' in resposta_texto:
+                                resposta_texto = resposta_texto['content']
+                            elif 'message' in resposta_texto and isinstance(resposta_texto['message'], dict) and 'content' in resposta_texto['message']:
+                                resposta_texto = resposta_texto['message']['content']
+                            else:
+                                resposta_texto = str(resposta_texto)
+                        elif not isinstance(resposta_texto, str):
+                            resposta_texto = str(resposta_texto)
+                    else:
+                        resposta_texto = str(resultado_data)
+
+                    # Criar registro de execução para este agente
+                    execucao_agente = ExecucaoEquipe(
+                        equipe_id=equipe_id,
+                        sprint=execucao.sprint,
+                        contexto=prompt,  # Salvar o prompt completo como contexto
+                        resposta=resposta_texto
+                    )
+                    db.session.add(execucao_agente)
+                    db.session.commit()
+
+                    print(f"DEBUG - Resposta do agente {node['id']}: {resposta_texto[:200]}...")
+                    
+                    texto += f'{resposta_texto}\n\n\n'
+                    respostas.append({
+                        'resposta': resposta_texto,
+                        'node': node
+                    })
+
+                    # Procurar e executar tarefas conectadas a este agente
+                    for connection in layout['connections']:
+                        if connection['startNode'] == node['id'] and connection['startPort'] == 'tasks':
+                            # Encontrar o nó da tarefa
+                            task_node = None
+                            for n in layout['nodes']:
+                                if n['id'] == connection['endNode'] and n['type'] == 'task':
+                                    task_node = n
+                                    break
+
+                            if task_node:
+                                print(f"DEBUG - Executando tarefa {task_node['id']} conectada ao agente {node['id']}")
+                                # Processar a tarefa usando a última resposta como entrada
+                                ultima_resposta = respostas[-1]['resposta']
+
+                                # Se for uma tupla (Response, status_code), extrair o conteúdo
+                                if isinstance(ultima_resposta, tuple):
+                                    if hasattr(ultima_resposta[0], 'get_data'):
+                                        texto_entrada = ultima_resposta[0].get_data(as_text=True)
+                                    else:
+                                        texto_entrada = str(ultima_resposta[0])
+                                else:
+                                    texto_entrada = str(ultima_resposta)
+
+                                # Verificar o tipo de tarefa
+                                task_type = task_node['config'].get('type', 'python')
+                                resultado_task = None
+                                contexto_task = None
+
+                                try:
+                                    if task_type == 'python':
+                                        # Obter o código Python da configuração da task
+                                        codigo_python = task_node['config'].get('expectedOutput')
+                                        if not codigo_python:
+                                            raise ValueError("Código Python não fornecido para tarefa do tipo Python")
+
+                                        # Preparar o código completo envolvendo em uma função
+                                        codigo_completo = f"""
+def executar_codigo(data):
+    {codigo_python}
+
+resultado = executar_codigo('''{texto_entrada}''')
+"""
+                                        # Criar o contexto da task
+                                        contexto_task = f"""### TAREFA PYTHON ###
+                                        <entrada>
+                                        {texto_entrada}
+                                        </entrada>
+
+                                        <codigo>
+                                        {codigo_python}
+                                        </codigo>"""
+
+                                        print(f"DEBUG - Código a ser executado:\n{codigo_completo}")
+
+                                        # Executar o código
+                                        local_vars = {}
+                                        exec(codigo_completo, globals(), local_vars)
+                                        resultado_bruto = local_vars.get('resultado', 'Código executado com sucesso')
+                                        
+                                        # Se o resultado for uma string representando um dicionário, limpar
+                                        if isinstance(resultado_bruto, str) and resultado_bruto.startswith('{') and resultado_bruto.endswith('}'):
+                                            # Remove as chaves e aspas simples do início e fim
+                                            resultado_task = resultado_bruto.strip('{}').strip("'")
+                                        else:
+                                            resultado_task = str(resultado_bruto)
+
+                                    elif task_type == 'telegram':
+                                        from utils.telegram import enviar_mensagem_telegram
+
+                                        # Obter configurações do Telegram
+                                        template = task_node['config'].get('template')
+                                        chat_id = task_node['config'].get('chatId')
+
+                                        if not template:
+                                            raise ValueError("Template não fornecido para tarefa do tipo Telegram")
+
+                                        # Substituir {texto} no template
+                                        mensagem = template.replace('{texto}', texto_entrada)
+
+                                        # Criar o contexto da task
+                                        contexto_task = f"""### TAREFA TELEGRAM ###
+                                        <entrada>
+                                        {texto_entrada}
+                                        </entrada>
+
+                                        <template>
+                                        {template}
+                                        </template>
+
+                                        <chat_id>
+                                        {chat_id if chat_id else 'Usando chat_id padrão do .env'}
+                                        </chat_id>"""
+
+                                        print(f"DEBUG - Enviando mensagem via Telegram: {mensagem[:200]}...")
+                                        
+                                        # Enviar mensagem
+                                        sucesso = enviar_mensagem_telegram(mensagem, chat_id)
+                                        resultado_task = "Mensagem enviada com sucesso!" if sucesso else "Erro ao enviar mensagem"
+                                        print(f"DEBUG - Resultado do envio: {resultado_task}")
+
+                                    else:
+                                        raise ValueError(f"Tipo de tarefa não suportado: {task_type}")
+
+                                except Exception as e:
+                                    erro = f"Erro ao executar tarefa {task_type}: {str(e)}"
+                                    print(f"DEBUG - {erro}")
+                                    
+                                    if task_type == 'telegram':
+                                        # Em caso de erro, tentar enviar mensagem de erro via Telegram
+                                        try:
+                                            from utils.telegram import enviar_mensagem_telegram
+                                            mensagem_erro = f"""⚠️ Erro na Execução da Tarefa
+
+<b>Tipo de Tarefa:</b> {task_type}
+<b>Erro:</b> {str(e)}
+
+<i>Este é um aviso automático do AgenteVirtus</i>"""
+                                            enviar_mensagem_telegram(mensagem_erro)
+                                        except Exception as e2:
+                                            print(f"DEBUG - Erro ao enviar mensagem de erro via Telegram: {str(e2)}")
+                                    
+                                    resultado_task = erro
+
+                                # Criar registro de execução para esta task
+                                execucao_task = ExecucaoEquipe(
+                                    equipe_id=equipe_id,
+                                    sprint=execucao.sprint,
+                                    contexto=contexto_task,
+                                    resposta=str(resultado_task)
+                                )
+                                db.session.add(execucao_task)
+                                db.session.commit()
+
+                                # Adicionar o resultado ao array de respostas
+                                respostas.append({
+                                    'resposta': resultado_task,
+                                    'node': task_node
+                                })
+
+                                # Atualizar o texto para o próximo agente/task
+                                texto += '\n\n ########' + str(resultado_task)
+
+                    time.sleep(1)
+
+                ########################################################################################
+                # TAREFA (Tarefas não conectadas a agentes)
+                ########################################################################################
+                if node['type'] == 'task' and not any(c['startPort'] == 'tasks' and c['endNode'] == node['id'] for c in layout['connections']):
+                    print(f"*** Iniciando a tarefa (task) {node['id']} ***")
+                    
+                    # Obter a última resposta e garantir que seja uma string
+                    ultima_resposta = respostas[-1]['resposta'] if respostas else ''
+
+                    # Se for uma tupla (Response, status_code), extrair o conteúdo
+                    if isinstance(ultima_resposta, tuple):
+                        if hasattr(ultima_resposta[0], 'get_data'):
+                            texto_entrada = ultima_resposta[0].get_data(as_text=True)
+                        else:
+                            texto_entrada = str(ultima_resposta[0])
+                    else:
+                        texto_entrada = str(ultima_resposta)
+
+                    # Verificar o tipo de tarefa
+                    task_type = node['config'].get('type', 'python')
+                    resultado_task = None
+                    contexto_task = None
+
+                    try:
+                        if task_type == 'python':
+                            # Obter o código Python da configuração da task
+                            codigo_python = node['config'].get('expectedOutput')
+                            if not codigo_python:
+                                raise ValueError("Código Python não fornecido para tarefa do tipo Python")
+
+                            # Preparar o código completo
+                            codigo_completo = codigo_python.replace('{texto_entrada}', texto_entrada)
+
+                            # Criar o contexto da task
+                            contexto_task = f"""### TAREFA PYTHON ###
+                            <entrada>
+                            {texto_entrada}
+                            </entrada>
+
+                            <codigo>
+                            {codigo_python}
+                            </codigo>"""
+
+                            # Executar o código
+                            local_vars = {}
+                            exec(codigo_completo, globals(), local_vars)
+                            resultado_task = local_vars.get('resultado', 'Código executado com sucesso')
+
+                        elif task_type == 'telegram':
+                            from utils.telegram import enviar_mensagem_telegram
+
+                            # Obter configurações do Telegram
+                            template = node['config'].get('template')
+                            chat_id = node['config'].get('chatId')
+
+                            if not template:
+                                raise ValueError("Template não fornecido para tarefa do tipo Telegram")
+
+                            # Substituir {texto} no template
+                            mensagem = template.replace('{texto}', texto_entrada)
+
+                            # Criar o contexto da task
+                            contexto_task = f"""### TAREFA TELEGRAM ###
+                            <entrada>
+                            {texto_entrada}
+                            </entrada>
+
+                            <template>
+                            {template}
+                            </template>
+
+                            <chat_id>
+                            {chat_id if chat_id else 'Usando chat_id padrão do .env'}
+                            </chat_id>"""
+
+                            print(f"DEBUG - Enviando mensagem via Telegram: {mensagem[:200]}...")
+                            
+                            # Enviar mensagem
+                            sucesso = enviar_mensagem_telegram(mensagem, chat_id)
+                            resultado_task = "Mensagem enviada com sucesso!" if sucesso else "Erro ao enviar mensagem"
+                            print(f"DEBUG - Resultado do envio: {resultado_task}")
+
+                        else:
+                            raise ValueError(f"Tipo de tarefa não suportado: {task_type}")
+
+                    except Exception as e:
+                        erro = f"Erro ao executar tarefa {task_type}: {str(e)}"
+                        print(f"DEBUG - {erro}")
+                        
+                        if task_type == 'telegram':
+                            # Em caso de erro, tentar enviar mensagem de erro via Telegram
+                            try:
+                                from utils.telegram import enviar_mensagem_telegram
+                                mensagem_erro = f"""⚠️ Erro na Execução da Tarefa
+
+<b>Tipo de Tarefa:</b> {task_type}
+<b>Erro:</b> {str(e)}
+
+<i>Este é um aviso automático do AgenteVirtus</i>"""
+                                enviar_mensagem_telegram(mensagem_erro)
+                            except Exception as e2:
+                                print(f"DEBUG - Erro ao enviar mensagem de erro via Telegram: {str(e2)}")
+                        
+                        resultado_task = erro
+
+                    # Criar registro de execução para esta task
+                    execucao_task = ExecucaoEquipe(
+                        equipe_id=equipe_id,
+                        sprint=execucao.sprint,
+                        contexto=contexto_task,
+                        resposta=str(resultado_task)
+                    )
+                    db.session.add(execucao_task)
+                    db.session.commit()
+
+                    # Adicionar o resultado ao array de respostas
+                    respostas.append({
+                        'resposta': resultado_task,
+                        'node': node
+                    })
+
+                    # Atualizar o texto para o próximo agente/task
+                    texto += '\n\n ########' + str(resultado_task)
+
+                if node['type'] == 'guardrail':
+                    print(f"*** Iniciando o guardrail {node['id']} ***")
+                    
+                    # Montar o prompt para o guardrail
+                    prompt = f"""### GUARDRAIL ###
+                    <tarefa>
+                    {node['config']['rules']}
+                    </tarefa>
+
+                    ### TEXTO PARA PROCESSAR ###
+                    <texto_processar>
+                    {respostas[-1]['resposta'] if respostas else ''}
+                    </texto_processar>
+
+                    ### FORMATO DE SAÍDA ###
+                    <formato_saida>
+                    REESCREVA o <texto_processar> observando o formato de saída: {node['config']['outputFormat']}
+                    
+                    ATENÇÃO.
+                    ESCREVA APENAS O TEXTO REESCRITO, SEM NADA MAIS. Se o formato de saída for JSON, escreva apenas o JSON, sem aspas.
+                    Se o formato de saída for Texto, escreva apenas o texto, sem comentários nem nada além do texto.
+                    </formato_saida>
+                    """
+
+                    # Executar o guardrail
+                    resultado = IaController.groq(prompt)
+
+                    # Extrair a resposta do resultado
+                    if isinstance(resultado, tuple) and len(resultado) == 2:
+                        if hasattr(resultado[0], 'get_json'):
+                            resultado_data = resultado[0].get_json()
+                        else:
+                            resultado_data = resultado[0]
+                    elif isinstance(resultado, dict):
+                        resultado_data = resultado
+                    elif hasattr(resultado, 'get_json'):
+                        resultado_data = resultado.get_json()
+                    else:
+                        resultado_data = resultado
+
+                    if isinstance(resultado_data, dict) and 'resposta' in resultado_data:
+                        resposta_texto = resultado_data['resposta']
+                        # Garantir que resposta_texto seja sempre uma string
+                        if isinstance(resposta_texto, dict):
+                            # Se resposta_texto for um dicionário, extrair o conteúdo de texto
+                            if 'content' in resposta_texto:
+                                resposta_texto = resposta_texto['content']
+                            elif 'message' in resposta_texto and isinstance(resposta_texto['message'], dict) and 'content' in resposta_texto['message']:
+                                resposta_texto = resposta_texto['message']['content']
+                            else:
+                                resposta_texto = str(resposta_texto)
+                        elif not isinstance(resposta_texto, str):
+                            resposta_texto = str(resposta_texto)
+                    else:
+                        resposta_texto = str(resultado_data)
+
+                    # Criar registro de execução para este guardrail
+                    execucao_guardrail = ExecucaoEquipe(
+                        equipe_id=equipe_id,
+                        sprint=execucao.sprint,
+                        contexto=prompt,  # Salvar o prompt completo como contexto
+                        resposta=resposta_texto
+                    )
+                    db.session.add(execucao_guardrail)
+                    db.session.commit()
+
+                    print(f"DEBUG - Guardrail {node['id']} - Tipo de resposta_texto: {type(resposta_texto)}")
+                    print(f"DEBUG - Guardrail {node['id']} - Conteúdo completo de resposta_texto: {resposta_texto}")
+                    
+                    texto += f'<node_{node["id"]}>{resposta_texto}</node_{node["id"]}>\n\n\n'
+                    respostas.append({
+                        'resposta': resposta_texto,
+                        'node': node
+                    })
+
+                # ########################################################################################
+                # FORMATO DE SAÍDA
+                # ########################################################################################
+
+                if node['type'] == 'formatoSaida':
+                    # Obter o conteúdo da última resposta
+                    ultima_resposta = respostas[-1]['resposta'] if respostas else ''
+
+                    # Se for uma tupla (Response, status_code), extrair o conteúdo
+                    if isinstance(ultima_resposta, tuple):
+                        if hasattr(ultima_resposta[0], 'get_data'):
+                            conteudo_para_formatar = ultima_resposta[0].get_data(as_text=True)
+                        else:
+                            conteudo_para_formatar = str(ultima_resposta[0])
+                    else:
+                        conteudo_para_formatar = str(ultima_resposta)
+
+                    # Gerar arquivo no formato especificado
+                    formato = node['config']['type']
+                    nome_arquivo = f"resultado_{equipe.nome}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+                    # Criar o contexto do formatoSaida
+                    contexto_formato = f"""### FORMATO DE SAÍDA ###
+                    <formato>
+                    {formato}
+                    </formato>
+
+                    <conteudo_original>
+                    {conteudo_para_formatar}
+                    </conteudo_original>"""
+
+                    arquivo_output, nome_arquivo_final, content_type = AgentesController.gerar_arquivo_saida(
+                        conteudo_para_formatar, formato, nome_arquivo, equipe_id
+                    )
+
+                    # Criar registro de execução para este formatoSaida
+                    execucao_formato = ExecucaoEquipe(
+                        equipe_id=equipe_id,
+                        sprint=execucao.sprint,
+                        contexto=contexto_formato,
+                        resposta=f"Arquivo gerado: {nome_arquivo_final} ({content_type})"
+                    )
+                    db.session.add(execucao_formato)
+                    db.session.commit()
+
+                    # Se for texto simples, apenas adicionar o conteúdo como resposta
+                    if content_type == "text/plain":
+                        respostas.append({
+                            'resposta': arquivo_output.getvalue().decode('utf-8'),
+                            'node': node
+                        })
+                    else:
+                        # Para outros tipos de arquivo, criar resposta para download
+                        response = make_response(arquivo_output.getvalue())
+                        response.headers['Content-Disposition'] = f'attachment; filename={nome_arquivo_final}'
+                        response.headers['Content-Type'] = content_type
+
+                        # Adicionar à lista de respostas
+                        respostas.append({
+                            'resposta': f"Arquivo gerado: {nome_arquivo_final}",
+                            'node': node,
+                            'arquivo_download': response
+                        })
+
+                    # Atualizar o texto para o próximo agente/task
+                    texto += f'\n\n<node_{node["id"]}>Arquivo gerado: {nome_arquivo_final}</node_{node["id"]}>'
+
+
+                # ########################################################################################
+                # TEMPLATE
+                # ########################################################################################
+                if node['type'] == 'template':
+                    ultima_resposta = respostas[-1]['resposta'] if respostas else ''
+
+                    # Use no_autoflush para evitar flush automático
+                    with db.session.no_autoflush:
+                        template_arquivo = TemplateArquivo.query.filter_by(
+                            node_id=node['id'], equipe_id=str(equipe.id)).first()
+
+                    if template_arquivo:
+                        # Criar o contexto do template
+                        contexto_template = f"""### TEMPLATE ###
+                        <template_arquivo>
+                        {template_arquivo.filename}
+                        </template_arquivo>
+
+                        <conteudo_para_inserir>
+                        {ultima_resposta}
+                        </conteudo_para_inserir>"""
+
+                        doc = Document(BytesIO(template_arquivo.data))
+                        # Quebra as linhas em parágrafos
+                        for linha in ultima_resposta.split('\n'):
+                            doc.add_paragraph(linha)
+
+                        output = BytesIO()
+                        doc.save(output)
+                        output.seek(0)
+                        
+                        nome_arquivo = f"resultado_{datetime.now().strftime('%Y%m%d_%H%M%S')}.docx"
+
+                        # Criar registro de execução para este template
+                        execucao_template = ExecucaoEquipe(
+                            equipe_id=equipe_id,
+                            sprint=execucao.sprint,
+                            contexto=contexto_template,
+                            resposta=f"Arquivo gerado: {nome_arquivo}"
+                        )
+                        db.session.add(execucao_template)
+                        db.session.commit()
+                        
+                        # Criar resposta para download
+                        response = make_response(output.getvalue())
+                        response.headers['Content-Disposition'] = f'attachment; filename={nome_arquivo}'
+                        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                        
+                        # Adicionar à lista de respostas
+                        respostas.append({
+                            'resposta': f"Arquivo gerado: {nome_arquivo}",
+                            'node': node,
+                            'arquivo_download': response
+                        })
+
+            # Criar resumo final da execução
+            resumo_final = f"Execução completa. Total de etapas: {len(respostas)}. Última resposta: {respostas[-1]['resposta'] if respostas else 'Nenhuma resposta'}..."
+            execucao.resposta = resumo_final
+            db.session.commit()
+
+            return jsonify({
+                'success': True,
+                'message': 'Equipe executada com sucesso',
+                'execucao_id': execucao.id,
+                'resposta': respostas[-1]['resposta'] if respostas else 'Execução concluída'
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': str(e)
+            }), 500

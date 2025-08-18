@@ -1,0 +1,204 @@
+{% extends "layout/base.html" %}
+
+{% block title %}Comprimir PDF - AgenteVirtus{% endblock %}
+
+{% block main %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mb-4">
+                        <i class="fas fa-file-zipper text-info me-2"></i>
+                        Comprima arquivos PDF reduzindo o tamanho
+                    </h5>
+                    
+                    <form id="comprimirPdfForm" enctype="multipart/form-data">
+                        <div class="mb-4">
+                            <label for="pdf" class="form-label">Selecione o arquivo PDF</label>
+                            <input type="file" class="form-control" id="pdf" name="pdf" accept=".pdf" required>
+                            <div class="form-text">Selecione um arquivo PDF para comprimir.</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="nivel_compressao" class="form-label">Nível de Compressão</label>
+                            <select class="form-select" id="nivel_compressao" name="nivel_compressao" required>
+                                <option value="baixo">Baixo - Manter boa qualidade</option>
+                                <option value="medio" selected>Médio - Equilibrado</option>
+                                <option value="alto">Alto - Máxima compressão</option>
+                            </select>
+                            <div class="form-text">
+                                <strong>Baixo:</strong> Reduz o tamanho mantendo boa qualidade (70% qualidade, 90% resolução)<br>
+                                <strong>Médio:</strong> Equilibra tamanho e qualidade (50% qualidade, 70% resolução)<br>
+                                <strong>Alto:</strong> Máxima redução de tamanho (20% qualidade, 50% resolução)
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <div id="fileInfo" class="alert alert-info" style="display: none;">
+                                <h6>Informações do arquivo:</h6>
+                                <p id="fileInfoText" class="mb-0"></p>
+                            </div>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-info" id="btnComprimir">
+                                <i class="fas fa-file-zipper me-1"></i>Comprimir PDF
+                            </button>
+                            <a href="/pdf" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i>Voltar
+                            </a>
+                        </div>
+                    </form>
+
+                    <div id="loading" class="text-center mt-4" style="display: none;">
+                        <div class="spinner-border text-info" role="status">
+                            <span class="visually-hidden">Processando...</span>
+                        </div>
+                        <p class="mt-2">Comprimindo PDF...</p>
+                    </div>
+
+                    <div id="result" class="mt-4" style="display: none;">
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle me-2"></i>PDF comprimido com sucesso!</h6>
+                            <p class="mb-2">O arquivo será baixado automaticamente.</p>
+                            <div id="compressionInfo" class="mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    <span id="compressionDetails"></span>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="error" class="mt-4" style="display: none;">
+                        <div class="alert alert-danger">
+                            <h6><i class="fas fa-exclamation-triangle me-2"></i>Erro ao comprimir PDF</h6>
+                            <p id="errorMessage" class="mb-0"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fileInput = document.getElementById('pdf');
+    const fileInfo = document.getElementById('fileInfo');
+    const fileInfoText = document.getElementById('fileInfoText');
+    const form = document.getElementById('comprimirPdfForm');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const error = document.getElementById('error');
+    const errorMessage = document.getElementById('errorMessage');
+    const btnComprimir = document.getElementById('btnComprimir');
+    const compressionDetails = document.getElementById('compressionDetails');
+
+    // Mostrar informações do arquivo selecionado
+    fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const fileSize = (file.size / 1024 / 1024).toFixed(2);
+            fileInfoText.innerHTML = `
+                <strong>Nome:</strong> ${file.name}<br>
+                <strong>Tamanho:</strong> ${fileSize} MB<br>
+                <strong>Tipo:</strong> ${file.type || 'application/pdf'}
+            `;
+            fileInfo.style.display = 'block';
+        } else {
+            fileInfo.style.display = 'none';
+        }
+    });
+
+    // Enviar formulário
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const file = fileInput.files[0];
+        if (!file) {
+            alert('Por favor, selecione um arquivo PDF.');
+            return;
+        }
+
+        // Verificar se é um PDF
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            alert('Por favor, selecione apenas arquivos PDF.');
+            return;
+        }
+
+        // Mostrar loading
+        loading.style.display = 'block';
+        result.style.display = 'none';
+        error.style.display = 'none';
+        btnComprimir.disabled = true;
+
+        // Criar FormData
+        const formData = new FormData();
+        formData.append('pdf', file);
+        formData.append('nivel_compressao', document.getElementById('nivel_compressao').value);
+
+        // Fazer requisição
+        fetch('/pdf/comprimir', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                // Se a resposta for um arquivo para download
+                const contentDisposition = response.headers.get('content-disposition');
+                if (contentDisposition && contentDisposition.includes('attachment')) {
+                    return response.blob().then(blob => {
+                        // Criar link para download
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `pdf_comprimido_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.pdf`;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        document.body.removeChild(a);
+                        
+                        // Mostrar sucesso
+                        const originalSize = (file.size / 1024 / 1024).toFixed(2);
+                        const compressedSize = (blob.size / 1024 / 1024).toFixed(2);
+                        const reduction = ((file.size - blob.size) / file.size * 100).toFixed(1);
+                        
+                        compressionDetails.innerHTML = `
+                            Tamanho original: ${originalSize} MB → Tamanho comprimido: ${compressedSize} MB 
+                            (Redução de ${reduction}%)
+                        `;
+                        
+                        loading.style.display = 'none';
+                        result.style.display = 'block';
+                        btnComprimir.disabled = false;
+                    });
+                } else {
+                    // Se for uma resposta JSON
+                    return response.json().then(data => {
+                        if (data.status === 'success') {
+                            loading.style.display = 'none';
+                            result.style.display = 'block';
+                            btnComprimir.disabled = false;
+                        } else {
+                            throw new Error(data.message || 'Erro desconhecido');
+                        }
+                    });
+                }
+            } else {
+                return response.json().then(data => {
+                    throw new Error(data.message || `Erro ${response.status}`);
+                });
+            }
+        })
+        .catch(err => {
+            loading.style.display = 'none';
+            error.style.display = 'block';
+            errorMessage.textContent = err.message;
+            btnComprimir.disabled = false;
+        });
+    });
+});
+</script>
+{% endblock %}
